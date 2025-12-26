@@ -1,0 +1,29 @@
+{
+  "submission_date": "2025-12-XX",
+  "test_results": {
+    "pearson_r_valence": 0.XX,
+    "pearson_r_arousal": 0.XX,
+    "pearson_r_average": 0.XX,
+    "mae_valence": 0.XX,
+    "mae_arousal": 0.XX,
+    "mae_average": 0.XX
+  },
+  "validation_results": {
+    "ccc_valence": 0.68,
+    "ccc_arousal": 0.45,
+    "ccc_average": 0.5846,
+    "expected_pearson_r": "0.60-0.65"
+  },
+  "comparison": {
+    "pearson_vs_ccc_diff": "TBD",
+    "performance_vs_expected": "TBD"
+  },
+  "ranking": {
+    "position": "XX / YY teams",
+    "percentile": "Top XX%"
+  },
+  "notes": [
+    "평가 결과를 받은 후 이 파일을 업데이트하세요",
+    "Codabench 리더보드에서 실제 값 확인"
+  ]
+}

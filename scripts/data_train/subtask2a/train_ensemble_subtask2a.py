@@ -1,720 +1,3552 @@
-# ============================================================================
-# Subtask 2a - Ensemble Model Training
-# ============================================================================
-#
-# Train emotion prediction models with different random seeds for ensemble
-#
-# Expected: CCC 0.5846-0.6046 (ensemble of 3 models)
-# Individual model: CCC 0.50-0.66
-#
-# Instructions:
-# 1. Train model with seed=42 (already done, CCC 0.5053)
-# 2. Train model with seed=123 using this file
-# 3. Train model with seed=777 using this file
-# 4. Use ensemble weight analysis script to combine predictions
-#
-# ============================================================================
-
-"""
-Subtask 2a - Ensemble Model Training
-=====================================
-Train emotion prediction model (Valence & Arousal) with configurable seed
-
-Architecture: RoBERTa + BiLSTM + Multi-Head Attention + Dual-Head Loss
-Key: Arousal CCC 70%, User Emb 64 dim, LSTM 256 hidden, Dropout 0.3
-"""
-
-# ===== CONFIGURATION =====
-# CHANGE THIS FOR EACH TRAINING RUN
-RANDOM_SEED = 777  # Change to 42, 123, or 777 for different runs
-MODEL_SAVE_NAME = f'subtask2a_seed{RANDOM_SEED}_best.pt'
-
-# WandB control - Set to False if wandb connection fails
-USE_WANDB = False  # Change to False to disable wandb (faster if connection issues)
-
-print(f'='*80)
-print(f'v3.0 ENSEMBLE TRAINING - SEED {RANDOM_SEED}')
-print(f'='*80)
-print(f'Model will be saved as: {MODEL_SAVE_NAME}')
-print(f'Expected CCC: ~0.510-0.515 (individual model)')
-print(f'Ensemble Expected: CCC 0.530-0.550 (3 models)')
-print(f'='*80)
-
-# ===== IMPORTS =====
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel, get_cosine_schedule_with_warmup
-from tqdm import tqdm
-from scipy.stats import pearsonr
-import re
-from sklearn.model_selection import train_test_split
-import wandb
-import random
-
-# ===== SET SEED =====
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-set_seed(RANDOM_SEED)
-print(f'✓ Random seed set to {RANDOM_SEED}')
-
-# Device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
-
-if torch.cuda.is_available():
-    print(f'GPU: {torch.cuda.get_device_name(0)}')
-    print(f'Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB')
-
-# ===== WANDB SETUP =====
-if USE_WANDB:
-    print('\n=== WANDB SETUP ===')
-    # Login only if not already logged in
-    try:
-        if not wandb.api.api_key:
-            wandb.login()
-        else:
-            print('✓ Already logged in to wandb')
-    except Exception as e:
-        print(f'⚠️ WandB login failed: {e}')
-        print('Continuing without WandB...')
-        USE_WANDB = False
-else:
-    print('\n=== WANDB DISABLED ===')
-    print('Training without WandB (faster if connection issues)')
-
-# ===== UPLOAD DATA =====
-print('\n=== UPLOAD DATA ===')
-from google.colab import files
-uploaded = files.upload()  # Upload train_subtask2a.csv
-
-# ===== FEATURE EXTRACTION =====
-print('\n=== FEATURE EXTRACTION ===')
-df = pd.read_csv('train_subtask2a.csv')
-print(f'Loaded {len(df)} samples from {df["user_id"].nunique()} users')
-
-# Text cleaning
-def clean_text(text):
-    if pd.isna(text):
-        return ""
-    text = str(text).strip()
-    text = re.sub(r'http\S+|www\S+', '', text)
-    text = re.sub(r'[^\w\s.,!?;:\'\"()-]', '', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text
-
-df['text_cleaned'] = df['text'].apply(clean_text)
-
-# Text features
-df['word_count'] = df['text_cleaned'].apply(lambda x: len(x.split()))
-df['char_count'] = df['text_cleaned'].apply(len)
-df['sentence_count'] = df['text_cleaned'].apply(lambda x: len(re.findall(r'[.!?]+', x)) + 1)
-df['avg_word_length'] = df['text_cleaned'].apply(
-    lambda x: np.mean([len(w) for w in x.split()]) if x.split() else 0
-)
-df['exclamation_count'] = df['text_cleaned'].apply(lambda x: x.count('!'))
-df['question_count'] = df['text_cleaned'].apply(lambda x: x.count('?'))
-df['uppercase_ratio'] = df['text'].apply(
-    lambda x: sum(1 for c in str(x) if c.isupper()) / (len(str(x)) + 1)
-)
-
-# Emotion words
-positive_words = set(['good', 'great', 'happy', 'love', 'excellent', 'wonderful', 'amazing',
-                     'fantastic', 'perfect', 'best', 'joy', 'excited', 'glad', 'delighted'])
-negative_words = set(['bad', 'sad', 'hate', 'terrible', 'awful', 'horrible', 'worst',
-                     'angry', 'fear', 'worried', 'anxious', 'depressed', 'upset', 'disappointed'])
-
-df['positive_word_count'] = df['text_cleaned'].apply(
-    lambda x: sum(1 for w in x.lower().split() if w in positive_words)
-)
-df['negative_word_count'] = df['text_cleaned'].apply(
-    lambda x: sum(1 for w in x.lower().split() if w in negative_words)
-)
-df['sentiment_score'] = df['positive_word_count'] - df['negative_word_count']
-
-# Temporal features
-df['timestamp'] = pd.to_datetime(df['timestamp'])
-df['hour'] = df['timestamp'].dt.hour
-df['day_of_week'] = df['timestamp'].dt.dayofweek
-df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-
-# Sort
-df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
-
-# User statistics
-user_stats = df.groupby('user_id').agg({
-    'valence': ['mean', 'std'],
-    'arousal': ['mean', 'std'],
-    'text_id': 'count'
-}).reset_index()
-user_stats.columns = ['user_id', 'user_valence_mean', 'user_valence_std',
-                     'user_arousal_mean', 'user_arousal_std', 'user_entry_count']
-user_stats['user_valence_std'] = user_stats['user_valence_std'].fillna(0)
-user_stats['user_arousal_std'] = user_stats['user_arousal_std'].fillna(0)
-
-df = df.merge(user_stats, on='user_id', how='left')
-
-# Sequence features
-df['entry_number'] = df.groupby('user_id').cumcount()
-df['relative_position'] = df['entry_number'] / df['user_entry_count']
-
-# Time gaps
-df['time_gap_hours'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds() / 3600
-df['time_gap_hours'] = df['time_gap_hours'].fillna(0)
-df['time_gap_log'] = np.log1p(df['time_gap_hours'])
-
-# Lag features (5 lags - PROVEN OPTIMAL)
-for lag in [1, 2, 3, 4, 5]:
-    df[f'valence_lag{lag}'] = df.groupby('user_id')['valence'].shift(lag)
-    df[f'arousal_lag{lag}'] = df.groupby('user_id')['arousal'].shift(lag)
-
-# Fill NaN
-for col in df.columns:
-    if df[col].dtype in ['float64', 'int64']:
-        df[col] = df[col].fillna(0)
-
-print(f'✓ Feature extraction complete: {len([c for c in df.columns if c not in ["text_id", "user_id", "timestamp", "text", "text_cleaned", "collection_phase", "is_words"]])} features')
-
-# ===== STARTING TRAINING =====
-print('\n=== STARTING TRAINING ===')
-
-# Initialize wandb with increased timeout (only if enabled)
-if USE_WANDB:
-    try:
-        wandb.init(
-            project="semeval-2026-task2-subtask2a-ensemble",
-            name=f"v3.0-ensemble-seed{RANDOM_SEED}",
-            settings=wandb.Settings(init_timeout=180),  # Increased timeout to 3 minutes
-            config={
-                "version": "v3.0-ENSEMBLE",
-                "seed": RANDOM_SEED,
-                "architecture": "RoBERTa-BiLSTM-Attention-DualHead",
-                "user_emb_dim": 64,  # PROVEN OPTIMAL
-                "lstm_hidden": 256,  # PROVEN OPTIMAL
-                "lstm_layers": 2,
-                "dropout": 0.2,  # PROVEN OPTIMAL
-                "seq_length": 7,
-                "batch_size": 10,
-                "num_epochs": 20,
-                "patience": 7,
-                "warmup_ratio": 0.15,
-                "lr_roberta": 1.5e-5,
-                "lr_other": 8e-5,
-                "weight_decay": 0.01,
-                "ccc_weight_valence": 0.65,
-                "ccc_weight_arousal": 0.70,  # PROVEN OPTIMAL - DO NOT CHANGE!
-                "mse_weight_valence": 0.35,
-                "mse_weight_arousal": 0.30,
-                "expected_ccc": "0.510-0.515 (single), 0.530-0.550 (ensemble)"
-            }
-        )
-        print('✓ WandB initialized successfully')
-    except Exception as e:
-        print(f'⚠️ WandB init failed: {e}')
-        print('Continuing without WandB...')
-        USE_WANDB = False
-
-print('='*80)
-print('v3.0 ENSEMBLE MODEL - PROVEN BEST CONFIGURATION')
-print('='*80)
-print(f'Random Seed: {RANDOM_SEED}')
-print(f'User Embedding: 64 dim (PROVEN OPTIMAL)')
-print(f'LSTM Hidden: 256 (PROVEN OPTIMAL)')
-print(f'Dropout: 0.2 (PROVEN OPTIMAL)')
-print(f'Arousal CCC Weight: 70% (PROVEN OPTIMAL - DO NOT CHANGE!)')
-print('='*80)
-
-# Hyperparameters (v3.0 PROVEN OPTIMAL)
-SEQ_LENGTH = 7
-BATCH_SIZE = 10
-NUM_EPOCHS = 20
-PATIENCE = 7  # v3.0 proven value
-MAX_GRAD_NORM = 1.0
-WARMUP_RATIO = 0.15
-
-# Loss weights (DUAL-HEAD - PROVEN OPTIMAL)
-CCC_WEIGHT_V = 0.65
-CCC_WEIGHT_A = 0.70  # ⭐ PROVEN OPTIMAL - DO NOT INCREASE TO 0.75!
-MSE_WEIGHT_V = 0.35
-MSE_WEIGHT_A = 0.30  # ⭐ PROVEN OPTIMAL - DO NOT DECREASE TO 0.25!
-
-# Learning rates
-LR_ROBERTA = 1.5e-5
-LR_OTHER = 8e-5
-WEIGHT_DECAY = 0.01
-
-print(f'Sequence Length: {SEQ_LENGTH}')
-print(f'Batch Size: {BATCH_SIZE}')
-print(f'Epochs: {NUM_EPOCHS}, Patience: {PATIENCE}')
-print(f'Valence Loss: {CCC_WEIGHT_V*100:.0f}% CCC + {MSE_WEIGHT_V*100:.0f}% MSE')
-print(f'Arousal Loss: {CCC_WEIGHT_A*100:.0f}% CCC + {MSE_WEIGHT_A*100:.0f}% MSE')
-print('='*80)
-
-# Train/Val split (using seed for reproducibility)
-train_df, val_df = train_test_split(
-    df, test_size=0.15, random_state=RANDOM_SEED, stratify=df['user_id']
-)
-
-train_users = train_df['user_id'].nunique()
-val_users = val_df['user_id'].nunique()
-
-print(f'Train: {len(train_df)} samples, {train_users} users')
-print(f'Val: {len(val_df)} samples, {val_users} users')
-
-# ===== DATASET =====
-tokenizer = AutoTokenizer.from_pretrained('roberta-base')
-
-class EmotionDataset(Dataset):
-    def __init__(self, df, tokenizer, seq_length=7, max_length=128):
-        self.df = df
-        self.tokenizer = tokenizer
-        self.seq_length = seq_length
-        self.max_length = max_length
-
-        # User mapping
-        unique_users = df['user_id'].unique()
-        self.user_to_idx = {uid: idx for idx, uid in enumerate(unique_users)}
-        self.num_users = len(unique_users)
-
-        # Create sequences
-        self.sequences = []
-        for user_id, user_df in df.groupby('user_id'):
-            user_data = user_df.reset_index(drop=True)
-            for i in range(len(user_data)):
-                start_idx = max(0, i - seq_length + 1)
-                seq_data = user_data.iloc[start_idx:i+1]
-
-                if len(seq_data) < seq_length:
-                    padding_needed = seq_length - len(seq_data)
-                    first_entry = seq_data.iloc[0:1]
-                    padding = pd.concat([first_entry] * padding_needed, ignore_index=True)
-                    seq_data = pd.concat([padding, seq_data], ignore_index=True)
-
-                self.sequences.append({
-                    'user_id': user_id,
-                    'seq_data': seq_data,
-                    'target_idx': i
-                })
-
-    def __len__(self):
-        return len(self.sequences)
-
-    def __getitem__(self, idx):
-        seq_info = self.sequences[idx]
-        seq_data = seq_info['seq_data']
-
-        texts = seq_data['text_cleaned'].tolist()
-        encodings = self.tokenizer(
-            texts,
-            padding='max_length',
-            truncation=True,
-            max_length=self.max_length,
-            return_tensors='pt'
-        )
-
-        temp_features = seq_data[[
-            'valence_lag1', 'valence_lag2', 'valence_lag3', 'valence_lag4', 'valence_lag5',
-            'arousal_lag1', 'arousal_lag2', 'arousal_lag3', 'arousal_lag4', 'arousal_lag5',
-            'time_gap_log', 'hour_sin', 'hour_cos', 'day_sin', 'day_cos',
-            'entry_number', 'relative_position'
-        ]].values.astype(np.float32)
-
-        user_stats = seq_data[[
-            'user_valence_mean', 'user_valence_std',
-            'user_arousal_mean', 'user_arousal_std'
-        ]].iloc[0].values.astype(np.float32)
-
-        text_features = seq_data[[
-            'word_count', 'char_count', 'sentence_count', 'avg_word_length',
-            'exclamation_count', 'question_count', 'uppercase_ratio',
-            'positive_word_count', 'negative_word_count', 'sentiment_score'
-        ]].values.astype(np.float32)
-
-        valence = seq_data['valence'].iloc[-1]
-        arousal = seq_data['arousal'].iloc[-1]
-
-        return {
-            'input_ids': encodings['input_ids'],
-            'attention_mask': encodings['attention_mask'],
-            'user_idx': self.user_to_idx[seq_info['user_id']],
-            'temporal_features': torch.FloatTensor(temp_features),
-            'user_stats': torch.FloatTensor(user_stats),
-            'text_features': torch.FloatTensor(text_features),
-            'valence': torch.FloatTensor([valence]),
-            'arousal': torch.FloatTensor([arousal])
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "gpuType": "A100"
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    },
+    "accelerator": "GPU",
+    "widgets": {
+      "application/vnd.jupyter.widget-state+json": {
+        "f734aa01694040ad819415d5934ed88e": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_f62d61b6a3724f929dcdeec4a200c753",
+              "IPY_MODEL_196dedb3bb51446496a4829415b02769",
+              "IPY_MODEL_4763c49d8cc542cdb7f96d431562df6f"
+            ],
+            "layout": "IPY_MODEL_15fe6197dd6e471086d947e09e4abca3"
+          }
+        },
+        "f62d61b6a3724f929dcdeec4a200c753": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_948518a39ae74d81b5b73a68bf71400b",
+            "placeholder": "​",
+            "style": "IPY_MODEL_bce60912386d4bcd83fadd7297062d1e",
+            "value": "tokenizer_config.json: 100%"
+          }
+        },
+        "196dedb3bb51446496a4829415b02769": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_9646694ec96a48d68a721545e69fd086",
+            "max": 25,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_bbd81e9c66ce471cbcb407144c012728",
+            "value": 25
+          }
+        },
+        "4763c49d8cc542cdb7f96d431562df6f": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_74a06ff176a84b59b20274f0ae499a5c",
+            "placeholder": "​",
+            "style": "IPY_MODEL_8e58ddd28f78448ea106038d6f1cf414",
+            "value": " 25.0/25.0 [00:00&lt;00:00, 3.15kB/s]"
+          }
+        },
+        "15fe6197dd6e471086d947e09e4abca3": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "948518a39ae74d81b5b73a68bf71400b": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "bce60912386d4bcd83fadd7297062d1e": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "9646694ec96a48d68a721545e69fd086": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "bbd81e9c66ce471cbcb407144c012728": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "74a06ff176a84b59b20274f0ae499a5c": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "8e58ddd28f78448ea106038d6f1cf414": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "e04e9375f6c447b5941b1891e65018e7": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_b972ada615384ccf8ac350c1fdaef472",
+              "IPY_MODEL_7d1c878033c34d3cba256e1a3364fbcb",
+              "IPY_MODEL_ede08f50598942c984c925828a033804"
+            ],
+            "layout": "IPY_MODEL_82a0caec276543368de9e052ce1f9365"
+          }
+        },
+        "b972ada615384ccf8ac350c1fdaef472": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_7c7fbde3867d401697ecffab5abd332c",
+            "placeholder": "​",
+            "style": "IPY_MODEL_755eb910d169424e81a4a6fe8c195f21",
+            "value": "config.json: 100%"
+          }
+        },
+        "7d1c878033c34d3cba256e1a3364fbcb": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_dc920c668a7347ad9389c68083c7d1b8",
+            "max": 481,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_5412f0653fa8412887c51a23bc293fc5",
+            "value": 481
+          }
+        },
+        "ede08f50598942c984c925828a033804": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_066bd7af340446af9d336650e8906112",
+            "placeholder": "​",
+            "style": "IPY_MODEL_c542888277c748e192326c273830fd25",
+            "value": " 481/481 [00:00&lt;00:00, 60.4kB/s]"
+          }
+        },
+        "82a0caec276543368de9e052ce1f9365": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "7c7fbde3867d401697ecffab5abd332c": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "755eb910d169424e81a4a6fe8c195f21": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "dc920c668a7347ad9389c68083c7d1b8": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "5412f0653fa8412887c51a23bc293fc5": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "066bd7af340446af9d336650e8906112": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "c542888277c748e192326c273830fd25": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "8f6a0c6a499144d2aadca7fc11c49c41": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_40af7142aab04fe2b3ff99772d169239",
+              "IPY_MODEL_e10fc926cc9c45ae813d285f03a02cff",
+              "IPY_MODEL_068846fd85d2493ea4d78abe1a1cdeea"
+            ],
+            "layout": "IPY_MODEL_a107e3453d0b42f1b58ab4e31f251627"
+          }
+        },
+        "40af7142aab04fe2b3ff99772d169239": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_bbe925148c06409989465d4cf3feff03",
+            "placeholder": "​",
+            "style": "IPY_MODEL_823ad51aa505471dabc563c62cf88e89",
+            "value": "vocab.json: 100%"
+          }
+        },
+        "e10fc926cc9c45ae813d285f03a02cff": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_19a193b106a34ca9ae9dfa828e907a45",
+            "max": 898823,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_0685957654244b4e87318b244b3be3d2",
+            "value": 898823
+          }
+        },
+        "068846fd85d2493ea4d78abe1a1cdeea": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_337cda3a2e59401d96df27cda6f99f22",
+            "placeholder": "​",
+            "style": "IPY_MODEL_b72076d028494f1a9ee6cb9e4dfb09ec",
+            "value": " 899k/899k [00:00&lt;00:00, 6.88MB/s]"
+          }
+        },
+        "a107e3453d0b42f1b58ab4e31f251627": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "bbe925148c06409989465d4cf3feff03": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "823ad51aa505471dabc563c62cf88e89": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "19a193b106a34ca9ae9dfa828e907a45": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "0685957654244b4e87318b244b3be3d2": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "337cda3a2e59401d96df27cda6f99f22": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "b72076d028494f1a9ee6cb9e4dfb09ec": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "67a69194a601452b85ce45beb5f62f33": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_acdb8260e1ad4d6d97d1c51da9b30210",
+              "IPY_MODEL_bdfa8c2d681543c18fecb936d8ce9ea7",
+              "IPY_MODEL_27930878b3394e9da22e06c8655cc5da"
+            ],
+            "layout": "IPY_MODEL_3cb83b6ec4854bbea19fbe4ac94fa5c0"
+          }
+        },
+        "acdb8260e1ad4d6d97d1c51da9b30210": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_14d9dbf4b54044b9b361ee8bdf12e190",
+            "placeholder": "​",
+            "style": "IPY_MODEL_bf7085f025e848508e9604a7eb407150",
+            "value": "merges.txt: 100%"
+          }
+        },
+        "bdfa8c2d681543c18fecb936d8ce9ea7": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_4755d981752f4ab4aa4ec1babf06df06",
+            "max": 456318,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_4f533c533de344f1a2bb8d93e1757098",
+            "value": 456318
+          }
+        },
+        "27930878b3394e9da22e06c8655cc5da": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_6c2c4cb970ee41668b9f79265c4078c2",
+            "placeholder": "​",
+            "style": "IPY_MODEL_b4e74ceecca14c09b835b0739f929868",
+            "value": " 456k/456k [00:00&lt;00:00, 42.3MB/s]"
+          }
+        },
+        "3cb83b6ec4854bbea19fbe4ac94fa5c0": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "14d9dbf4b54044b9b361ee8bdf12e190": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "bf7085f025e848508e9604a7eb407150": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "4755d981752f4ab4aa4ec1babf06df06": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "4f533c533de344f1a2bb8d93e1757098": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "6c2c4cb970ee41668b9f79265c4078c2": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "b4e74ceecca14c09b835b0739f929868": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "baf63ae165034ba7904c7f297535d77f": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_cad82171d8884c5299bd5679c66698bc",
+              "IPY_MODEL_a803191fd0a44a5d91f08efa87a6ee38",
+              "IPY_MODEL_4967cc55a6224b0995fe51153b1acd93"
+            ],
+            "layout": "IPY_MODEL_b9ca6924e13f498d9cd6961b4afb7fcc"
+          }
+        },
+        "cad82171d8884c5299bd5679c66698bc": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_a49098ce04854c9c9c9b5d910e83b4a1",
+            "placeholder": "​",
+            "style": "IPY_MODEL_dfcf760ebb004a9fb6cff9f194240a3a",
+            "value": "tokenizer.json: 100%"
+          }
+        },
+        "a803191fd0a44a5d91f08efa87a6ee38": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_6b68290d8760420b817b228345aef0bf",
+            "max": 1355863,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_7c959e325efb4f6a954fac7f6345a19f",
+            "value": 1355863
+          }
+        },
+        "4967cc55a6224b0995fe51153b1acd93": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_9377f040e212495d8afe4d08cbaaa8af",
+            "placeholder": "​",
+            "style": "IPY_MODEL_f48f6ec852084e6b958d476e6fe50bae",
+            "value": " 1.36M/1.36M [00:00&lt;00:00, 28.0MB/s]"
+          }
+        },
+        "b9ca6924e13f498d9cd6961b4afb7fcc": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "a49098ce04854c9c9c9b5d910e83b4a1": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "dfcf760ebb004a9fb6cff9f194240a3a": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "6b68290d8760420b817b228345aef0bf": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "7c959e325efb4f6a954fac7f6345a19f": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "9377f040e212495d8afe4d08cbaaa8af": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "f48f6ec852084e6b958d476e6fe50bae": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "545b232f44d241ae9bdf23275e5c0429": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HBoxModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HBoxModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HBoxView",
+            "box_style": "",
+            "children": [
+              "IPY_MODEL_b819bc052c224dfebc7a5c8b431d515b",
+              "IPY_MODEL_230ccd3d730e4c2a8e8a9d9018635951",
+              "IPY_MODEL_fedb2e957dd94096869e67cc721ce035"
+            ],
+            "layout": "IPY_MODEL_d92ad63f233b4682bb23488b498f66b7"
+          }
+        },
+        "b819bc052c224dfebc7a5c8b431d515b": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_7b2b4d8f8db443b9bd81d8e12e76bffd",
+            "placeholder": "​",
+            "style": "IPY_MODEL_99ab1cbc103b4667b90542847c8af844",
+            "value": "model.safetensors: 100%"
+          }
+        },
+        "230ccd3d730e4c2a8e8a9d9018635951": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "FloatProgressModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "FloatProgressModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "ProgressView",
+            "bar_style": "success",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_34d9b4cad9194548a9fa887827dc62fb",
+            "max": 498818054,
+            "min": 0,
+            "orientation": "horizontal",
+            "style": "IPY_MODEL_e98cb915b0bf47faa54b5729d2699374",
+            "value": 498818054
+          }
+        },
+        "fedb2e957dd94096869e67cc721ce035": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "HTMLModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_dom_classes": [],
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "HTMLModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/controls",
+            "_view_module_version": "1.5.0",
+            "_view_name": "HTMLView",
+            "description": "",
+            "description_tooltip": null,
+            "layout": "IPY_MODEL_eb32624b120446068365aa3600c6e20c",
+            "placeholder": "​",
+            "style": "IPY_MODEL_26772865a35d4d8a8121ed8289a50736",
+            "value": " 499M/499M [00:02&lt;00:00, 312MB/s]"
+          }
+        },
+        "d92ad63f233b4682bb23488b498f66b7": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "7b2b4d8f8db443b9bd81d8e12e76bffd": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "99ab1cbc103b4667b90542847c8af844": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
+        },
+        "34d9b4cad9194548a9fa887827dc62fb": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "e98cb915b0bf47faa54b5729d2699374": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "ProgressStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "ProgressStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "bar_color": null,
+            "description_width": ""
+          }
+        },
+        "eb32624b120446068365aa3600c6e20c": {
+          "model_module": "@jupyter-widgets/base",
+          "model_name": "LayoutModel",
+          "model_module_version": "1.2.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/base",
+            "_model_module_version": "1.2.0",
+            "_model_name": "LayoutModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "LayoutView",
+            "align_content": null,
+            "align_items": null,
+            "align_self": null,
+            "border": null,
+            "bottom": null,
+            "display": null,
+            "flex": null,
+            "flex_flow": null,
+            "grid_area": null,
+            "grid_auto_columns": null,
+            "grid_auto_flow": null,
+            "grid_auto_rows": null,
+            "grid_column": null,
+            "grid_gap": null,
+            "grid_row": null,
+            "grid_template_areas": null,
+            "grid_template_columns": null,
+            "grid_template_rows": null,
+            "height": null,
+            "justify_content": null,
+            "justify_items": null,
+            "left": null,
+            "margin": null,
+            "max_height": null,
+            "max_width": null,
+            "min_height": null,
+            "min_width": null,
+            "object_fit": null,
+            "object_position": null,
+            "order": null,
+            "overflow": null,
+            "overflow_x": null,
+            "overflow_y": null,
+            "padding": null,
+            "right": null,
+            "top": null,
+            "visibility": null,
+            "width": null
+          }
+        },
+        "26772865a35d4d8a8121ed8289a50736": {
+          "model_module": "@jupyter-widgets/controls",
+          "model_name": "DescriptionStyleModel",
+          "model_module_version": "1.5.0",
+          "state": {
+            "_model_module": "@jupyter-widgets/controls",
+            "_model_module_version": "1.5.0",
+            "_model_name": "DescriptionStyleModel",
+            "_view_count": null,
+            "_view_module": "@jupyter-widgets/base",
+            "_view_module_version": "1.2.0",
+            "_view_name": "StyleView",
+            "description_width": ""
+          }
         }
-
-# Create datasets
-train_dataset = EmotionDataset(train_df, tokenizer, SEQ_LENGTH)
-val_dataset = EmotionDataset(val_df, tokenizer, SEQ_LENGTH)
-
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
-
-# ===== MODEL =====
-
-class FinalEmotionModel(nn.Module):
-    def __init__(self, num_users, user_emb_dim=64, lstm_hidden=256, lstm_layers=2,
-                 num_attention_heads=4, dropout=0.2):
-        super().__init__()
-
-        self.roberta = AutoModel.from_pretrained('roberta-base')
-        text_dim = 768
-
-        self.user_embedding = nn.Embedding(num_users, user_emb_dim)
-
-        temp_feature_dim = 17
-        user_stat_dim = 4
-        text_feature_dim = 10
-
-        self.input_dim = text_dim + user_emb_dim + temp_feature_dim + user_stat_dim + text_feature_dim
-        self.input_proj = nn.Linear(self.input_dim, lstm_hidden * 2)
-
-        self.lstm = nn.LSTM(
-            lstm_hidden * 2,
-            lstm_hidden,
-            num_layers=lstm_layers,
-            batch_first=True,
-            bidirectional=True,
-            dropout=dropout if lstm_layers > 1 else 0
-        )
-
-        self.attention = nn.MultiheadAttention(
-            embed_dim=lstm_hidden * 2,
-            num_heads=num_attention_heads,
-            dropout=dropout,
-            batch_first=True
-        )
-
-        self.fusion = nn.Sequential(
-            nn.Linear(lstm_hidden * 2, lstm_hidden),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(lstm_hidden, lstm_hidden // 2)
-        )
-
-        # Dual prediction heads
-        self.valence_head = nn.Sequential(
-            nn.Linear(lstm_hidden // 2, lstm_hidden // 4),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(lstm_hidden // 4, 1)
-        )
-
-        self.arousal_head = nn.Sequential(
-            nn.Linear(lstm_hidden // 2, lstm_hidden // 4),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(lstm_hidden // 4, 1)
-        )
-
-    def forward(self, input_ids, attention_mask, user_idx, temporal_features,
-                user_stats, text_features):
-        batch_size, seq_len, max_len = input_ids.shape
-
-        # Encode text
-        input_ids_flat = input_ids.view(batch_size * seq_len, max_len)
-        attention_mask_flat = attention_mask.view(batch_size * seq_len, max_len)
-
-        outputs = self.roberta(input_ids_flat, attention_mask=attention_mask_flat)
-        text_emb = outputs.last_hidden_state[:, 0, :]
-        text_emb = text_emb.view(batch_size, seq_len, -1)
-
-        # User embeddings
-        user_emb = self.user_embedding(user_idx)
-        user_emb = user_emb.unsqueeze(1).expand(-1, seq_len, -1)
-
-        # User stats
-        user_stats = user_stats.unsqueeze(1).expand(-1, seq_len, -1)
-
-        # Combine features
-        combined = torch.cat([text_emb, user_emb, temporal_features, user_stats, text_features], dim=-1)
-        combined = self.input_proj(combined)
-
-        # LSTM
-        lstm_out, _ = self.lstm(combined)
-
-        # Attention
-        attn_out, _ = self.attention(lstm_out, lstm_out, lstm_out)
-
-        # Take last timestep
-        final_repr = attn_out[:, -1, :]
-
-        # Fusion
-        fused = self.fusion(final_repr)
-
-        # Predictions
-        valence_pred = self.valence_head(fused)
-        arousal_pred = self.arousal_head(fused)
-
-        return valence_pred, arousal_pred
-
-# Create model
-model = FinalEmotionModel(num_users=train_dataset.num_users, dropout=0.2).to(device)
-
-total_params = sum(p.numel() for p in model.parameters())
-trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f'Total parameters: {total_params:,}')
-print(f'Trainable parameters: {trainable_params:,}')
-
-# ===== LOSS & OPTIMIZER =====
-
-def concordance_correlation_coefficient(y_true, y_pred):
-    """CCC calculation"""
-    mean_true = torch.mean(y_true)
-    mean_pred = torch.mean(y_pred)
-    var_true = torch.var(y_true)
-    var_pred = torch.var(y_pred)
-    covariance = torch.mean((y_true - mean_true) * (y_pred - mean_pred))
-    ccc = (2 * covariance) / (var_true + var_pred + (mean_true - mean_pred) ** 2 + 1e-8)
-    return ccc
-
-def dual_head_loss(valence_pred, arousal_pred, valence_true, arousal_true,
-                   ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):
-    """Dual-head loss with separate weights"""
-    # Valence loss
-    ccc_v = concordance_correlation_coefficient(valence_true, valence_pred)
-    mse_v = F.mse_loss(valence_pred, valence_true)
-    loss_v = (1 - ccc_v) * ccc_weight_v + mse_v * mse_weight_v
-
-    # Arousal loss
-    ccc_a = concordance_correlation_coefficient(arousal_true, arousal_pred)
-    mse_a = F.mse_loss(arousal_pred, arousal_true)
-    loss_a = (1 - ccc_a) * ccc_weight_a + mse_a * mse_weight_a
-
-    # Total loss
-    total_loss = loss_v + loss_a
-
-    return total_loss, ccc_v, ccc_a
-
-# Optimizer (differential learning rates)
-optimizer = torch.optim.AdamW([
-    {'params': model.roberta.parameters(), 'lr': LR_ROBERTA},
-    {'params': [p for n, p in model.named_parameters() if 'roberta' not in n], 'lr': LR_OTHER}
-], weight_decay=WEIGHT_DECAY)
-
-# Scheduler
-total_steps = len(train_loader) * NUM_EPOCHS
-warmup_steps = int(total_steps * WARMUP_RATIO)
-scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
-
-print(f'Training steps: {total_steps}, Warmup: {warmup_steps}')
-
-# ===== TRAINING =====
-
-def train_epoch(model, loader, optimizer, scheduler, max_grad_norm,
-                ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):
-    model.train()
-    total_loss = 0
-    all_valence_pred, all_valence_true = [], []
-    all_arousal_pred, all_arousal_true = [], []
-
-    for batch in tqdm(loader, desc='Training'):
-        input_ids = batch['input_ids'].to(device)
-        attention_mask = batch['attention_mask'].to(device)
-        user_idx = batch['user_idx'].to(device)
-        temporal_features = batch['temporal_features'].to(device)
-        user_stats = batch['user_stats'].to(device)
-        text_features = batch['text_features'].to(device)
-        valence_true = batch['valence'].to(device)
-        arousal_true = batch['arousal'].to(device)
-
-        optimizer.zero_grad()
-
-        valence_pred, arousal_pred = model(
-            input_ids, attention_mask, user_idx,
-            temporal_features, user_stats, text_features
-        )
-
-        loss, ccc_v, ccc_a = dual_head_loss(
-            valence_pred, arousal_pred, valence_true, arousal_true,
-            ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a
-        )
-
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-        optimizer.step()
-        scheduler.step()
-
-        total_loss += loss.item()
-        all_valence_pred.extend(valence_pred.detach().cpu().numpy())
-        all_valence_true.extend(valence_true.detach().cpu().numpy())
-        all_arousal_pred.extend(arousal_pred.detach().cpu().numpy())
-        all_arousal_true.extend(arousal_true.detach().cpu().numpy())
-
-    avg_loss = total_loss / len(loader)
-    train_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])
-    train_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])
-    train_ccc = (train_ccc_v + train_ccc_a) / 2
-
-    return avg_loss, train_ccc, train_ccc_v, train_ccc_a
-
-def validate(model, loader, ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):
-    model.eval()
-    total_loss = 0
-    all_valence_pred, all_valence_true = [], []
-    all_arousal_pred, all_arousal_true = [], []
-
-    with torch.no_grad():
-        for batch in tqdm(loader, desc='Validation'):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            user_idx = batch['user_idx'].to(device)
-            temporal_features = batch['temporal_features'].to(device)
-            user_stats = batch['user_stats'].to(device)
-            text_features = batch['text_features'].to(device)
-            valence_true = batch['valence'].to(device)
-            arousal_true = batch['arousal'].to(device)
-
-            valence_pred, arousal_pred = model(
-                input_ids, attention_mask, user_idx,
-                temporal_features, user_stats, text_features
-            )
-
-            loss, ccc_v, ccc_a = dual_head_loss(
-                valence_pred, arousal_pred, valence_true, arousal_true,
-                ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a
-            )
-
-            total_loss += loss.item()
-            all_valence_pred.extend(valence_pred.cpu().numpy())
-            all_valence_true.extend(valence_true.cpu().numpy())
-            all_arousal_pred.extend(arousal_pred.cpu().numpy())
-            all_arousal_true.extend(arousal_true.cpu().numpy())
-
-    avg_loss = total_loss / len(loader)
-    val_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])
-    val_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])
-    val_ccc = (val_ccc_v + val_ccc_a) / 2
-
-    val_rmse_v = float(np.sqrt(np.mean((np.array(all_valence_true) - np.array(all_valence_pred)) ** 2)))
-    val_rmse_a = float(np.sqrt(np.mean((np.array(all_arousal_true) - np.array(all_arousal_pred)) ** 2)))
-
-    return avg_loss, val_ccc, val_ccc_v, val_ccc_a, val_rmse_v, val_rmse_a
-
-print('\n=== TRAINING FINAL MODEL v3.0 ENSEMBLE ===\n')
-
-best_ccc = -1
-patience_counter = 0
-
-for epoch in range(NUM_EPOCHS):
-    print(f'\nEpoch {epoch+1}/{NUM_EPOCHS}')
-    print('-' * 80)
-
-    train_loss, train_ccc, train_ccc_v, train_ccc_a = train_epoch(
-        model, train_loader, optimizer, scheduler, MAX_GRAD_NORM,
-        CCC_WEIGHT_V, CCC_WEIGHT_A, MSE_WEIGHT_V, MSE_WEIGHT_A
-    )
-
-    val_loss, val_ccc, val_ccc_v, val_ccc_a, val_rmse_v, val_rmse_a = validate(
-        model, val_loader, CCC_WEIGHT_V, CCC_WEIGHT_A, MSE_WEIGHT_V, MSE_WEIGHT_A
-    )
-
-    print(f'\nEpoch {epoch+1} Results:')
-    print(f'  Train Loss: {train_loss:.4f}, Train CCC: {train_ccc:.4f}')
-    print(f'  Val Loss: {val_loss:.4f}, Val CCC: {val_ccc:.4f}')
-    print(f'  Val CCC Valence: {val_ccc_v:.4f}, Val CCC Arousal: {val_ccc_a:.4f}')
-    print(f'  Val RMSE Valence: {val_rmse_v:.4f}, Val RMSE Arousal: {val_rmse_a:.4f}')
-
-    # Log to wandb (if enabled)
-    if USE_WANDB:
-        wandb.log({
-            'epoch': epoch + 1,
-            'train/loss': train_loss,
-            'train/ccc_avg': train_ccc,
-            'train/ccc_valence': train_ccc_v,
-            'train/ccc_arousal': train_ccc_a,
-            'val/loss': val_loss,
-            'val/ccc_avg': val_ccc,
-            'val/ccc_valence': val_ccc_v,
-            'val/ccc_arousal': val_ccc_a,
-            'val/rmse_valence': val_rmse_v,
-            'val/rmse_arousal': val_rmse_a,
-            'learning_rate': scheduler.get_last_lr()[0],
-            'patience_counter': patience_counter
-        })
-
-    # Save best model
-    if val_ccc > best_ccc:
-        best_ccc = val_ccc
-        patience_counter = 0
-        torch.save({
-            'epoch': epoch + 1,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'best_ccc': best_ccc,
-            'val_ccc_v': val_ccc_v,
-            'val_ccc_a': val_ccc_a,
-            'val_rmse_v': val_rmse_v,
-            'val_rmse_a': val_rmse_a,
-            'seed': RANDOM_SEED,
-            'config': {
-                'user_emb_dim': 64,
-                'lstm_hidden': 256,
-                'dropout': 0.2,
-                'ccc_weight_v': CCC_WEIGHT_V,
-                'ccc_weight_a': CCC_WEIGHT_A,
-                'mse_weight_v': MSE_WEIGHT_V,
-                'mse_weight_a': MSE_WEIGHT_A
+      }
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "source": [
+        "# ============================================================================\n",
+        "# Subtask 2a - Ensemble Model Training\n",
+        "# ============================================================================\n",
+        "#\n",
+        "# Train emotion prediction models with different random seeds for ensemble\n",
+        "#\n",
+        "# Expected: CCC 0.5846-0.6046 (ensemble of 3 models)\n",
+        "# Individual model: CCC 0.50-0.66\n",
+        "#\n",
+        "# Instructions:\n",
+        "# 1. Train model with seed=42 (already done, CCC 0.5053)\n",
+        "# 2. Train model with seed=123 using this file\n",
+        "# 3. Train model with seed=777 using this file\n",
+        "# 4. Use ensemble weight analysis script to combine predictions\n",
+        "#\n",
+        "# ============================================================================\n",
+        "\n",
+        "\"\"\"\n",
+        "Subtask 2a - Ensemble Model Training\n",
+        "=====================================\n",
+        "Train emotion prediction model (Valence & Arousal) with configurable seed\n",
+        "\n",
+        "Architecture: RoBERTa + BiLSTM + Multi-Head Attention + Dual-Head Loss\n",
+        "Key: Arousal CCC 70%, User Emb 64 dim, LSTM 256 hidden, Dropout 0.3\n",
+        "\"\"\"\n",
+        "\n",
+        "# ===== CONFIGURATION =====\n",
+        "# CHANGE THIS FOR EACH TRAINING RUN\n",
+        "RANDOM_SEED = 888  # Change to 42, 123, 777, or 888 for different runs\n",
+        "MODEL_SAVE_NAME = 'subtask2a_seed888_best.pt'\n",
+        "\n",
+        "# WandB control - Set to False if wandb connection fails\n",
+        "USE_WANDB = False  # Change to False to disable wandb (faster if connection issues)\n",
+        "\n",
+        "print(f'='*80)\n",
+        "print(f'v3.0 ENSEMBLE TRAINING - SEED {RANDOM_SEED}')\n",
+        "print(f'='*80)\n",
+        "print(f'Model will be saved as: {MODEL_SAVE_NAME}')\n",
+        "print(f'Expected CCC: ~0.510-0.515 (individual model)')\n",
+        "print(f'Ensemble Expected: CCC 0.530-0.550 (3 models)')\n",
+        "print(f'='*80)\n",
+        "\n",
+        "# ===== IMPORTS =====\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import torch\n",
+        "import torch.nn as nn\n",
+        "import torch.nn.functional as F\n",
+        "from torch.utils.data import Dataset, DataLoader\n",
+        "from transformers import AutoTokenizer, AutoModel, get_cosine_schedule_with_warmup\n",
+        "from tqdm import tqdm\n",
+        "from scipy.stats import pearsonr\n",
+        "import re\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "import wandb\n",
+        "import random\n",
+        "\n",
+        "# ===== SET SEED =====\n",
+        "def set_seed(seed):\n",
+        "    random.seed(seed)\n",
+        "    np.random.seed(seed)\n",
+        "    torch.manual_seed(seed)\n",
+        "    torch.cuda.manual_seed_all(seed)\n",
+        "    torch.backends.cudnn.deterministic = True\n",
+        "    torch.backends.cudnn.benchmark = False\n",
+        "\n",
+        "set_seed(RANDOM_SEED)\n",
+        "print(f'✓ Random seed set to {RANDOM_SEED}')\n",
+        "\n",
+        "# Device\n",
+        "device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n",
+        "print(f'Using device: {device}')\n",
+        "\n",
+        "if torch.cuda.is_available():\n",
+        "    print(f'GPU: {torch.cuda.get_device_name(0)}')\n",
+        "    print(f'Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB')\n",
+        "\n",
+        "# ===== WANDB SETUP =====\n",
+        "if USE_WANDB:\n",
+        "    print('\\n=== WANDB SETUP ===')\n",
+        "    # Login only if not already logged in\n",
+        "    try:\n",
+        "        if not wandb.api.api_key:\n",
+        "            wandb.login()\n",
+        "        else:\n",
+        "            print('✓ Already logged in to wandb')\n",
+        "    except Exception as e:\n",
+        "        print(f'⚠️ WandB login failed: {e}')\n",
+        "        print('Continuing without WandB...')\n",
+        "        USE_WANDB = False\n",
+        "else:\n",
+        "    print('\\n=== WANDB DISABLED ===')\n",
+        "    print('Training without WandB (faster if connection issues)')\n",
+        "\n",
+        "# ===== MOUNT GOOGLE DRIVE =====\n",
+        "print('\\n=== MOUNT GOOGLE DRIVE ===')\n",
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')\n",
+        "print('✓ Google Drive mounted successfully')\n",
+        "\n",
+        "# ===== FEATURE EXTRACTION =====\n",
+        "print('\\n=== FEATURE EXTRACTION ===')\n",
+        "\n",
+        "# Try multiple possible paths\n",
+        "import os\n",
+        "possible_paths = [\n",
+        "    '/content/drive/MyDrive/raw/train_subtask2a.csv',\n",
+        "    '/content/drive/MyDrive/Colab Notebooks/SemEval 2026 Task 2/raw/train_subtask2a.csv',\n",
+        "    '/content/drive/MyDrive/SemEval 2026 Task 2/raw/train_subtask2a.csv',\n",
+        "    '/content/drive/MyDrive/train_subtask2a.csv'\n",
+        "]\n",
+        "\n",
+        "file_path = None\n",
+        "for path in possible_paths:\n",
+        "    if os.path.exists(path):\n",
+        "        file_path = path\n",
+        "        print(f'✓ Found file at: {path}')\n",
+        "        break\n",
+        "\n",
+        "if file_path is None:\n",
+        "    # List available files to help debug\n",
+        "    print('\\n⚠️ File not found. Checking available directories...')\n",
+        "    print('\\nContents of /content/drive/MyDrive/:')\n",
+        "    try:\n",
+        "        for item in os.listdir('/content/drive/MyDrive/'):\n",
+        "            print(f'  - {item}')\n",
+        "    except:\n",
+        "        pass\n",
+        "\n",
+        "    raise FileNotFoundError(\n",
+        "        'train_subtask2a.csv not found. Please upload it to one of these locations:\\n' +\n",
+        "        '\\n'.join(f'  - {p}' for p in possible_paths)\n",
+        "    )\n",
+        "\n",
+        "df = pd.read_csv(file_path)\n",
+        "print(f'✓ Loaded {len(df)} samples from {df[\"user_id\"].nunique()} users')\n",
+        "\n",
+        "# Text cleaning\n",
+        "def clean_text(text):\n",
+        "    if pd.isna(text):\n",
+        "        return \"\"\n",
+        "    text = str(text).strip()\n",
+        "    text = re.sub(r'http\\S+|www\\S+', '', text)\n",
+        "    text = re.sub(r'[^\\w\\s.,!?;:\\'\\\"()-]', '', text)\n",
+        "    text = re.sub(r'\\s+', ' ', text)\n",
+        "    return text\n",
+        "\n",
+        "df['text_cleaned'] = df['text'].apply(clean_text)\n",
+        "\n",
+        "# Text features\n",
+        "df['word_count'] = df['text_cleaned'].apply(lambda x: len(x.split()))\n",
+        "df['char_count'] = df['text_cleaned'].apply(len)\n",
+        "df['sentence_count'] = df['text_cleaned'].apply(lambda x: len(re.findall(r'[.!?]+', x)) + 1)\n",
+        "df['avg_word_length'] = df['text_cleaned'].apply(\n",
+        "    lambda x: np.mean([len(w) for w in x.split()]) if x.split() else 0\n",
+        ")\n",
+        "df['exclamation_count'] = df['text_cleaned'].apply(lambda x: x.count('!'))\n",
+        "df['question_count'] = df['text_cleaned'].apply(lambda x: x.count('?'))\n",
+        "df['uppercase_ratio'] = df['text'].apply(\n",
+        "    lambda x: sum(1 for c in str(x) if c.isupper()) / (len(str(x)) + 1)\n",
+        ")\n",
+        "\n",
+        "# Emotion words\n",
+        "positive_words = set(['good', 'great', 'happy', 'love', 'excellent', 'wonderful', 'amazing',\n",
+        "                     'fantastic', 'perfect', 'best', 'joy', 'excited', 'glad', 'delighted'])\n",
+        "negative_words = set(['bad', 'sad', 'hate', 'terrible', 'awful', 'horrible', 'worst',\n",
+        "                     'angry', 'fear', 'worried', 'anxious', 'depressed', 'upset', 'disappointed'])\n",
+        "\n",
+        "df['positive_word_count'] = df['text_cleaned'].apply(\n",
+        "    lambda x: sum(1 for w in x.lower().split() if w in positive_words)\n",
+        ")\n",
+        "df['negative_word_count'] = df['text_cleaned'].apply(\n",
+        "    lambda x: sum(1 for w in x.lower().split() if w in negative_words)\n",
+        ")\n",
+        "df['sentiment_score'] = df['positive_word_count'] - df['negative_word_count']\n",
+        "\n",
+        "# Temporal features\n",
+        "df['timestamp'] = pd.to_datetime(df['timestamp'])\n",
+        "df['hour'] = df['timestamp'].dt.hour\n",
+        "df['day_of_week'] = df['timestamp'].dt.dayofweek\n",
+        "df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)\n",
+        "df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)\n",
+        "df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)\n",
+        "df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)\n",
+        "\n",
+        "# Sort\n",
+        "df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)\n",
+        "\n",
+        "# User statistics\n",
+        "user_stats = df.groupby('user_id').agg({\n",
+        "    'valence': ['mean', 'std'],\n",
+        "    'arousal': ['mean', 'std'],\n",
+        "    'text_id': 'count'\n",
+        "}).reset_index()\n",
+        "user_stats.columns = ['user_id', 'user_valence_mean', 'user_valence_std',\n",
+        "                     'user_arousal_mean', 'user_arousal_std', 'user_entry_count']\n",
+        "user_stats['user_valence_std'] = user_stats['user_valence_std'].fillna(0)\n",
+        "user_stats['user_arousal_std'] = user_stats['user_arousal_std'].fillna(0)\n",
+        "\n",
+        "df = df.merge(user_stats, on='user_id', how='left')\n",
+        "\n",
+        "# Sequence features\n",
+        "df['entry_number'] = df.groupby('user_id').cumcount()\n",
+        "df['relative_position'] = df['entry_number'] / df['user_entry_count']\n",
+        "\n",
+        "# Time gaps\n",
+        "df['time_gap_hours'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds() / 3600\n",
+        "df['time_gap_hours'] = df['time_gap_hours'].fillna(0)\n",
+        "df['time_gap_log'] = np.log1p(df['time_gap_hours'])\n",
+        "\n",
+        "# Lag features (5 lags - PROVEN OPTIMAL)\n",
+        "for lag in [1, 2, 3, 4, 5]:\n",
+        "    df[f'valence_lag{lag}'] = df.groupby('user_id')['valence'].shift(lag)\n",
+        "    df[f'arousal_lag{lag}'] = df.groupby('user_id')['arousal'].shift(lag)\n",
+        "\n",
+        "# Fill NaN\n",
+        "for col in df.columns:\n",
+        "    if df[col].dtype in ['float64', 'int64']:\n",
+        "        df[col] = df[col].fillna(0)\n",
+        "\n",
+        "print(f'✓ Feature extraction complete: {len([c for c in df.columns if c not in [\"text_id\", \"user_id\", \"timestamp\", \"text\", \"text_cleaned\", \"collection_phase\", \"is_words\"]])} features')\n",
+        "\n",
+        "# ===== STARTING TRAINING =====\n",
+        "print('\\n=== STARTING TRAINING ===')\n",
+        "\n",
+        "# Initialize wandb with increased timeout (only if enabled)\n",
+        "if USE_WANDB:\n",
+        "    try:\n",
+        "        wandb.init(\n",
+        "            project=\"semeval-2026-task2-subtask2a-ensemble\",\n",
+        "            name=f\"v3.0-ensemble-seed{RANDOM_SEED}\",\n",
+        "            settings=wandb.Settings(init_timeout=180),  # Increased timeout to 3 minutes\n",
+        "            config={\n",
+        "                \"version\": \"v3.0-ENSEMBLE\",\n",
+        "                \"seed\": RANDOM_SEED,\n",
+        "                \"architecture\": \"RoBERTa-BiLSTM-Attention-DualHead\",\n",
+        "                \"user_emb_dim\": 64,  # PROVEN OPTIMAL\n",
+        "                \"lstm_hidden\": 256,  # PROVEN OPTIMAL\n",
+        "                \"lstm_layers\": 2,\n",
+        "                \"dropout\": 0.2,  # PROVEN OPTIMAL\n",
+        "                \"seq_length\": 7,\n",
+        "                \"batch_size\": 10,\n",
+        "                \"num_epochs\": 20,\n",
+        "                \"patience\": 7,\n",
+        "                \"warmup_ratio\": 0.15,\n",
+        "                \"lr_roberta\": 1.5e-5,\n",
+        "                \"lr_other\": 8e-5,\n",
+        "                \"weight_decay\": 0.01,\n",
+        "                \"ccc_weight_valence\": 0.65,\n",
+        "                \"ccc_weight_arousal\": 0.70,  # PROVEN OPTIMAL - DO NOT CHANGE!\n",
+        "                \"mse_weight_valence\": 0.35,\n",
+        "                \"mse_weight_arousal\": 0.30,\n",
+        "                \"expected_ccc\": \"0.510-0.515 (single), 0.530-0.550 (ensemble)\"\n",
+        "            }\n",
+        "        )\n",
+        "        print('✓ WandB initialized successfully')\n",
+        "    except Exception as e:\n",
+        "        print(f'⚠️ WandB init failed: {e}')\n",
+        "        print('Continuing without WandB...')\n",
+        "        USE_WANDB = False\n",
+        "\n",
+        "print('='*80)\n",
+        "print('v3.0 ENSEMBLE MODEL - PROVEN BEST CONFIGURATION')\n",
+        "print('='*80)\n",
+        "print(f'Random Seed: {RANDOM_SEED}')\n",
+        "print(f'User Embedding: 64 dim (PROVEN OPTIMAL)')\n",
+        "print(f'LSTM Hidden: 256 (PROVEN OPTIMAL)')\n",
+        "print(f'Dropout: 0.2 (PROVEN OPTIMAL)')\n",
+        "print(f'Arousal CCC Weight: 70% (PROVEN OPTIMAL - DO NOT CHANGE!)')\n",
+        "print('='*80)\n",
+        "\n",
+        "# Hyperparameters (v3.0 PROVEN OPTIMAL)\n",
+        "SEQ_LENGTH = 7\n",
+        "BATCH_SIZE = 10\n",
+        "NUM_EPOCHS = 20\n",
+        "PATIENCE = 7  # v3.0 proven value\n",
+        "MAX_GRAD_NORM = 1.0\n",
+        "WARMUP_RATIO = 0.15\n",
+        "\n",
+        "# Loss weights (DUAL-HEAD - PROVEN OPTIMAL)\n",
+        "CCC_WEIGHT_V = 0.65\n",
+        "CCC_WEIGHT_A = 0.70  # ⭐ PROVEN OPTIMAL - DO NOT INCREASE TO 0.75!\n",
+        "MSE_WEIGHT_V = 0.35\n",
+        "MSE_WEIGHT_A = 0.30  # ⭐ PROVEN OPTIMAL - DO NOT DECREASE TO 0.25!\n",
+        "\n",
+        "# Learning rates\n",
+        "LR_ROBERTA = 1.5e-5\n",
+        "LR_OTHER = 8e-5\n",
+        "WEIGHT_DECAY = 0.01\n",
+        "\n",
+        "print(f'Sequence Length: {SEQ_LENGTH}')\n",
+        "print(f'Batch Size: {BATCH_SIZE}')\n",
+        "print(f'Epochs: {NUM_EPOCHS}, Patience: {PATIENCE}')\n",
+        "print(f'Valence Loss: {CCC_WEIGHT_V*100:.0f}% CCC + {MSE_WEIGHT_V*100:.0f}% MSE')\n",
+        "print(f'Arousal Loss: {CCC_WEIGHT_A*100:.0f}% CCC + {MSE_WEIGHT_A*100:.0f}% MSE')\n",
+        "print('='*80)\n",
+        "\n",
+        "# Train/Val split (using seed for reproducibility)\n",
+        "train_df, val_df = train_test_split(\n",
+        "    df, test_size=0.15, random_state=RANDOM_SEED, stratify=df['user_id']\n",
+        ")\n",
+        "\n",
+        "train_users = train_df['user_id'].nunique()\n",
+        "val_users = val_df['user_id'].nunique()\n",
+        "\n",
+        "print(f'Train: {len(train_df)} samples, {train_users} users')\n",
+        "print(f'Val: {len(val_df)} samples, {val_users} users')\n",
+        "\n",
+        "# ===== DATASET =====\n",
+        "tokenizer = AutoTokenizer.from_pretrained('roberta-base')\n",
+        "\n",
+        "class EmotionDataset(Dataset):\n",
+        "    def __init__(self, df, tokenizer, seq_length=7, max_length=128):\n",
+        "        self.df = df\n",
+        "        self.tokenizer = tokenizer\n",
+        "        self.seq_length = seq_length\n",
+        "        self.max_length = max_length\n",
+        "\n",
+        "        # User mapping\n",
+        "        unique_users = df['user_id'].unique()\n",
+        "        self.user_to_idx = {uid: idx for idx, uid in enumerate(unique_users)}\n",
+        "        self.num_users = len(unique_users)\n",
+        "\n",
+        "        # Create sequences\n",
+        "        self.sequences = []\n",
+        "        for user_id, user_df in df.groupby('user_id'):\n",
+        "            user_data = user_df.reset_index(drop=True)\n",
+        "            for i in range(len(user_data)):\n",
+        "                start_idx = max(0, i - seq_length + 1)\n",
+        "                seq_data = user_data.iloc[start_idx:i+1]\n",
+        "\n",
+        "                if len(seq_data) < seq_length:\n",
+        "                    padding_needed = seq_length - len(seq_data)\n",
+        "                    first_entry = seq_data.iloc[0:1]\n",
+        "                    padding = pd.concat([first_entry] * padding_needed, ignore_index=True)\n",
+        "                    seq_data = pd.concat([padding, seq_data], ignore_index=True)\n",
+        "\n",
+        "                self.sequences.append({\n",
+        "                    'user_id': user_id,\n",
+        "                    'seq_data': seq_data,\n",
+        "                    'target_idx': i\n",
+        "                })\n",
+        "\n",
+        "    def __len__(self):\n",
+        "        return len(self.sequences)\n",
+        "\n",
+        "    def __getitem__(self, idx):\n",
+        "        seq_info = self.sequences[idx]\n",
+        "        seq_data = seq_info['seq_data']\n",
+        "\n",
+        "        texts = seq_data['text_cleaned'].tolist()\n",
+        "        encodings = self.tokenizer(\n",
+        "            texts,\n",
+        "            padding='max_length',\n",
+        "            truncation=True,\n",
+        "            max_length=self.max_length,\n",
+        "            return_tensors='pt'\n",
+        "        )\n",
+        "\n",
+        "        temp_features = seq_data[[\n",
+        "            'valence_lag1', 'valence_lag2', 'valence_lag3', 'valence_lag4', 'valence_lag5',\n",
+        "            'arousal_lag1', 'arousal_lag2', 'arousal_lag3', 'arousal_lag4', 'arousal_lag5',\n",
+        "            'time_gap_log', 'hour_sin', 'hour_cos', 'day_sin', 'day_cos',\n",
+        "            'entry_number', 'relative_position'\n",
+        "        ]].values.astype(np.float32)\n",
+        "\n",
+        "        user_stats = seq_data[[\n",
+        "            'user_valence_mean', 'user_valence_std',\n",
+        "            'user_arousal_mean', 'user_arousal_std'\n",
+        "        ]].iloc[0].values.astype(np.float32)\n",
+        "\n",
+        "        text_features = seq_data[[\n",
+        "            'word_count', 'char_count', 'sentence_count', 'avg_word_length',\n",
+        "            'exclamation_count', 'question_count', 'uppercase_ratio',\n",
+        "            'positive_word_count', 'negative_word_count', 'sentiment_score'\n",
+        "        ]].values.astype(np.float32)\n",
+        "\n",
+        "        valence = seq_data['valence'].iloc[-1]\n",
+        "        arousal = seq_data['arousal'].iloc[-1]\n",
+        "\n",
+        "        return {\n",
+        "            'input_ids': encodings['input_ids'],\n",
+        "            'attention_mask': encodings['attention_mask'],\n",
+        "            'user_idx': self.user_to_idx[seq_info['user_id']],\n",
+        "            'temporal_features': torch.FloatTensor(temp_features),\n",
+        "            'user_stats': torch.FloatTensor(user_stats),\n",
+        "            'text_features': torch.FloatTensor(text_features),\n",
+        "            'valence': torch.FloatTensor([valence]),\n",
+        "            'arousal': torch.FloatTensor([arousal])\n",
+        "        }\n",
+        "\n",
+        "# Create datasets\n",
+        "train_dataset = EmotionDataset(train_df, tokenizer, SEQ_LENGTH)\n",
+        "val_dataset = EmotionDataset(val_df, tokenizer, SEQ_LENGTH)\n",
+        "\n",
+        "train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)\n",
+        "val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)\n",
+        "\n",
+        "# ===== MODEL =====\n",
+        "\n",
+        "class FinalEmotionModel(nn.Module):\n",
+        "    def __init__(self, num_users, user_emb_dim=64, lstm_hidden=256, lstm_layers=2,\n",
+        "                 num_attention_heads=4, dropout=0.2):\n",
+        "        super().__init__()\n",
+        "\n",
+        "        self.roberta = AutoModel.from_pretrained('roberta-base')\n",
+        "        text_dim = 768\n",
+        "\n",
+        "        self.user_embedding = nn.Embedding(num_users, user_emb_dim)\n",
+        "\n",
+        "        temp_feature_dim = 17\n",
+        "        user_stat_dim = 4\n",
+        "        text_feature_dim = 10\n",
+        "\n",
+        "        self.input_dim = text_dim + user_emb_dim + temp_feature_dim + user_stat_dim + text_feature_dim\n",
+        "        self.input_proj = nn.Linear(self.input_dim, lstm_hidden * 2)\n",
+        "\n",
+        "        self.lstm = nn.LSTM(\n",
+        "            lstm_hidden * 2,\n",
+        "            lstm_hidden,\n",
+        "            num_layers=lstm_layers,\n",
+        "            batch_first=True,\n",
+        "            bidirectional=True,\n",
+        "            dropout=dropout if lstm_layers > 1 else 0\n",
+        "        )\n",
+        "\n",
+        "        self.attention = nn.MultiheadAttention(\n",
+        "            embed_dim=lstm_hidden * 2,\n",
+        "            num_heads=num_attention_heads,\n",
+        "            dropout=dropout,\n",
+        "            batch_first=True\n",
+        "        )\n",
+        "\n",
+        "        self.fusion = nn.Sequential(\n",
+        "            nn.Linear(lstm_hidden * 2, lstm_hidden),\n",
+        "            nn.GELU(),\n",
+        "            nn.Dropout(dropout),\n",
+        "            nn.Linear(lstm_hidden, lstm_hidden // 2)\n",
+        "        )\n",
+        "\n",
+        "        # Dual prediction heads\n",
+        "        self.valence_head = nn.Sequential(\n",
+        "            nn.Linear(lstm_hidden // 2, lstm_hidden // 4),\n",
+        "            nn.GELU(),\n",
+        "            nn.Dropout(dropout),\n",
+        "            nn.Linear(lstm_hidden // 4, 1)\n",
+        "        )\n",
+        "\n",
+        "        self.arousal_head = nn.Sequential(\n",
+        "            nn.Linear(lstm_hidden // 2, lstm_hidden // 4),\n",
+        "            nn.GELU(),\n",
+        "            nn.Dropout(dropout),\n",
+        "            nn.Linear(lstm_hidden // 4, 1)\n",
+        "        )\n",
+        "\n",
+        "    def forward(self, input_ids, attention_mask, user_idx, temporal_features,\n",
+        "                user_stats, text_features):\n",
+        "        batch_size, seq_len, max_len = input_ids.shape\n",
+        "\n",
+        "        # Encode text\n",
+        "        input_ids_flat = input_ids.view(batch_size * seq_len, max_len)\n",
+        "        attention_mask_flat = attention_mask.view(batch_size * seq_len, max_len)\n",
+        "\n",
+        "        outputs = self.roberta(input_ids_flat, attention_mask=attention_mask_flat)\n",
+        "        text_emb = outputs.last_hidden_state[:, 0, :]\n",
+        "        text_emb = text_emb.view(batch_size, seq_len, -1)\n",
+        "\n",
+        "        # User embeddings\n",
+        "        user_emb = self.user_embedding(user_idx)\n",
+        "        user_emb = user_emb.unsqueeze(1).expand(-1, seq_len, -1)\n",
+        "\n",
+        "        # User stats\n",
+        "        user_stats = user_stats.unsqueeze(1).expand(-1, seq_len, -1)\n",
+        "\n",
+        "        # Combine features\n",
+        "        combined = torch.cat([text_emb, user_emb, temporal_features, user_stats, text_features], dim=-1)\n",
+        "        combined = self.input_proj(combined)\n",
+        "\n",
+        "        # LSTM\n",
+        "        lstm_out, _ = self.lstm(combined)\n",
+        "\n",
+        "        # Attention\n",
+        "        attn_out, _ = self.attention(lstm_out, lstm_out, lstm_out)\n",
+        "\n",
+        "        # Take last timestep\n",
+        "        final_repr = attn_out[:, -1, :]\n",
+        "\n",
+        "        # Fusion\n",
+        "        fused = self.fusion(final_repr)\n",
+        "\n",
+        "        # Predictions\n",
+        "        valence_pred = self.valence_head(fused)\n",
+        "        arousal_pred = self.arousal_head(fused)\n",
+        "\n",
+        "        return valence_pred, arousal_pred\n",
+        "\n",
+        "# Create model\n",
+        "model = FinalEmotionModel(num_users=train_dataset.num_users, dropout=0.2).to(device)\n",
+        "\n",
+        "total_params = sum(p.numel() for p in model.parameters())\n",
+        "trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)\n",
+        "print(f'Total parameters: {total_params:,}')\n",
+        "print(f'Trainable parameters: {trainable_params:,}')\n",
+        "\n",
+        "# ===== LOSS & OPTIMIZER =====\n",
+        "\n",
+        "def concordance_correlation_coefficient(y_true, y_pred):\n",
+        "    \"\"\"CCC calculation\"\"\"\n",
+        "    mean_true = torch.mean(y_true)\n",
+        "    mean_pred = torch.mean(y_pred)\n",
+        "    var_true = torch.var(y_true)\n",
+        "    var_pred = torch.var(y_pred)\n",
+        "    covariance = torch.mean((y_true - mean_true) * (y_pred - mean_pred))\n",
+        "    ccc = (2 * covariance) / (var_true + var_pred + (mean_true - mean_pred) ** 2 + 1e-8)\n",
+        "    return ccc\n",
+        "\n",
+        "def dual_head_loss(valence_pred, arousal_pred, valence_true, arousal_true,\n",
+        "                   ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):\n",
+        "    \"\"\"Dual-head loss with separate weights\"\"\"\n",
+        "    # Valence loss\n",
+        "    ccc_v = concordance_correlation_coefficient(valence_true, valence_pred)\n",
+        "    mse_v = F.mse_loss(valence_pred, valence_true)\n",
+        "    loss_v = (1 - ccc_v) * ccc_weight_v + mse_v * mse_weight_v\n",
+        "\n",
+        "    # Arousal loss\n",
+        "    ccc_a = concordance_correlation_coefficient(arousal_true, arousal_pred)\n",
+        "    mse_a = F.mse_loss(arousal_pred, arousal_true)\n",
+        "    loss_a = (1 - ccc_a) * ccc_weight_a + mse_a * mse_weight_a\n",
+        "\n",
+        "    # Total loss\n",
+        "    total_loss = loss_v + loss_a\n",
+        "\n",
+        "    return total_loss, ccc_v, ccc_a\n",
+        "\n",
+        "# Optimizer (differential learning rates)\n",
+        "optimizer = torch.optim.AdamW([\n",
+        "    {'params': model.roberta.parameters(), 'lr': LR_ROBERTA},\n",
+        "    {'params': [p for n, p in model.named_parameters() if 'roberta' not in n], 'lr': LR_OTHER}\n",
+        "], weight_decay=WEIGHT_DECAY)\n",
+        "\n",
+        "# Scheduler\n",
+        "total_steps = len(train_loader) * NUM_EPOCHS\n",
+        "warmup_steps = int(total_steps * WARMUP_RATIO)\n",
+        "scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)\n",
+        "\n",
+        "print(f'Training steps: {total_steps}, Warmup: {warmup_steps}')\n",
+        "\n",
+        "# ===== TRAINING =====\n",
+        "\n",
+        "def train_epoch(model, loader, optimizer, scheduler, max_grad_norm,\n",
+        "                ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):\n",
+        "    model.train()\n",
+        "    total_loss = 0\n",
+        "    all_valence_pred, all_valence_true = [], []\n",
+        "    all_arousal_pred, all_arousal_true = [], []\n",
+        "\n",
+        "    for batch in tqdm(loader, desc='Training'):\n",
+        "        input_ids = batch['input_ids'].to(device)\n",
+        "        attention_mask = batch['attention_mask'].to(device)\n",
+        "        user_idx = batch['user_idx'].to(device)\n",
+        "        temporal_features = batch['temporal_features'].to(device)\n",
+        "        user_stats = batch['user_stats'].to(device)\n",
+        "        text_features = batch['text_features'].to(device)\n",
+        "        valence_true = batch['valence'].to(device)\n",
+        "        arousal_true = batch['arousal'].to(device)\n",
+        "\n",
+        "        optimizer.zero_grad()\n",
+        "\n",
+        "        valence_pred, arousal_pred = model(\n",
+        "            input_ids, attention_mask, user_idx,\n",
+        "            temporal_features, user_stats, text_features\n",
+        "        )\n",
+        "\n",
+        "        loss, ccc_v, ccc_a = dual_head_loss(\n",
+        "            valence_pred, arousal_pred, valence_true, arousal_true,\n",
+        "            ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a\n",
+        "        )\n",
+        "\n",
+        "        loss.backward()\n",
+        "        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)\n",
+        "        optimizer.step()\n",
+        "        scheduler.step()\n",
+        "\n",
+        "        total_loss += loss.item()\n",
+        "        all_valence_pred.extend(valence_pred.detach().cpu().numpy())\n",
+        "        all_valence_true.extend(valence_true.detach().cpu().numpy())\n",
+        "        all_arousal_pred.extend(arousal_pred.detach().cpu().numpy())\n",
+        "        all_arousal_true.extend(arousal_true.detach().cpu().numpy())\n",
+        "\n",
+        "    avg_loss = total_loss / len(loader)\n",
+        "    train_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])\n",
+        "    train_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])\n",
+        "    train_ccc = (train_ccc_v + train_ccc_a) / 2\n",
+        "\n",
+        "    return avg_loss, train_ccc, train_ccc_v, train_ccc_a\n",
+        "\n",
+        "def validate(model, loader, ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a):\n",
+        "    model.eval()\n",
+        "    total_loss = 0\n",
+        "    all_valence_pred, all_valence_true = [], []\n",
+        "    all_arousal_pred, all_arousal_true = [], []\n",
+        "\n",
+        "    with torch.no_grad():\n",
+        "        for batch in tqdm(loader, desc='Validation'):\n",
+        "            input_ids = batch['input_ids'].to(device)\n",
+        "            attention_mask = batch['attention_mask'].to(device)\n",
+        "            user_idx = batch['user_idx'].to(device)\n",
+        "            temporal_features = batch['temporal_features'].to(device)\n",
+        "            user_stats = batch['user_stats'].to(device)\n",
+        "            text_features = batch['text_features'].to(device)\n",
+        "            valence_true = batch['valence'].to(device)\n",
+        "            arousal_true = batch['arousal'].to(device)\n",
+        "\n",
+        "            valence_pred, arousal_pred = model(\n",
+        "                input_ids, attention_mask, user_idx,\n",
+        "                temporal_features, user_stats, text_features\n",
+        "            )\n",
+        "\n",
+        "            loss, ccc_v, ccc_a = dual_head_loss(\n",
+        "                valence_pred, arousal_pred, valence_true, arousal_true,\n",
+        "                ccc_weight_v, ccc_weight_a, mse_weight_v, mse_weight_a\n",
+        "            )\n",
+        "\n",
+        "            total_loss += loss.item()\n",
+        "            all_valence_pred.extend(valence_pred.cpu().numpy())\n",
+        "            all_valence_true.extend(valence_true.cpu().numpy())\n",
+        "            all_arousal_pred.extend(arousal_pred.cpu().numpy())\n",
+        "            all_arousal_true.extend(arousal_true.cpu().numpy())\n",
+        "\n",
+        "    avg_loss = total_loss / len(loader)\n",
+        "    val_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])\n",
+        "    val_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])\n",
+        "    val_ccc = (val_ccc_v + val_ccc_a) / 2\n",
+        "\n",
+        "    val_rmse_v = float(np.sqrt(np.mean((np.array(all_valence_true) - np.array(all_valence_pred)) ** 2)))\n",
+        "    val_rmse_a = float(np.sqrt(np.mean((np.array(all_arousal_true) - np.array(all_arousal_pred)) ** 2)))\n",
+        "\n",
+        "    return avg_loss, val_ccc, val_ccc_v, val_ccc_a, val_rmse_v, val_rmse_a\n",
+        "\n",
+        "print('\\n=== TRAINING FINAL MODEL v3.0 ENSEMBLE ===\\n')\n",
+        "\n",
+        "best_ccc = -1\n",
+        "patience_counter = 0\n",
+        "\n",
+        "for epoch in range(NUM_EPOCHS):\n",
+        "    print(f'\\nEpoch {epoch+1}/{NUM_EPOCHS}')\n",
+        "    print('-' * 80)\n",
+        "\n",
+        "    train_loss, train_ccc, train_ccc_v, train_ccc_a = train_epoch(\n",
+        "        model, train_loader, optimizer, scheduler, MAX_GRAD_NORM,\n",
+        "        CCC_WEIGHT_V, CCC_WEIGHT_A, MSE_WEIGHT_V, MSE_WEIGHT_A\n",
+        "    )\n",
+        "\n",
+        "    val_loss, val_ccc, val_ccc_v, val_ccc_a, val_rmse_v, val_rmse_a = validate(\n",
+        "        model, val_loader, CCC_WEIGHT_V, CCC_WEIGHT_A, MSE_WEIGHT_V, MSE_WEIGHT_A\n",
+        "    )\n",
+        "\n",
+        "    print(f'\\nEpoch {epoch+1} Results:')\n",
+        "    print(f'  Train Loss: {train_loss:.4f}, Train CCC: {train_ccc:.4f}')\n",
+        "    print(f'  Val Loss: {val_loss:.4f}, Val CCC: {val_ccc:.4f}')\n",
+        "    print(f'  Val CCC Valence: {val_ccc_v:.4f}, Val CCC Arousal: {val_ccc_a:.4f}')\n",
+        "    print(f'  Val RMSE Valence: {val_rmse_v:.4f}, Val RMSE Arousal: {val_rmse_a:.4f}')\n",
+        "\n",
+        "    # Log to wandb (if enabled)\n",
+        "    if USE_WANDB:\n",
+        "        wandb.log({\n",
+        "            'epoch': epoch + 1,\n",
+        "            'train/loss': train_loss,\n",
+        "            'train/ccc_avg': train_ccc,\n",
+        "            'train/ccc_valence': train_ccc_v,\n",
+        "            'train/ccc_arousal': train_ccc_a,\n",
+        "            'val/loss': val_loss,\n",
+        "            'val/ccc_avg': val_ccc,\n",
+        "            'val/ccc_valence': val_ccc_v,\n",
+        "            'val/ccc_arousal': val_ccc_a,\n",
+        "            'val/rmse_valence': val_rmse_v,\n",
+        "            'val/rmse_arousal': val_rmse_a,\n",
+        "            'learning_rate': scheduler.get_last_lr()[0],\n",
+        "            'patience_counter': patience_counter\n",
+        "        })\n",
+        "\n",
+        "    # Save best model\n",
+        "    if val_ccc > best_ccc:\n",
+        "        best_ccc = val_ccc\n",
+        "        patience_counter = 0\n",
+        "        torch.save({\n",
+        "            'epoch': epoch + 1,\n",
+        "            'model_state_dict': model.state_dict(),\n",
+        "            'optimizer_state_dict': optimizer.state_dict(),\n",
+        "            'best_ccc': best_ccc,\n",
+        "            'val_ccc_v': val_ccc_v,\n",
+        "            'val_ccc_a': val_ccc_a,\n",
+        "            'val_rmse_v': val_rmse_v,\n",
+        "            'val_rmse_a': val_rmse_a,\n",
+        "            'seed': RANDOM_SEED,\n",
+        "            'config': {\n",
+        "                'user_emb_dim': 64,\n",
+        "                'lstm_hidden': 256,\n",
+        "                'dropout': 0.2,\n",
+        "                'ccc_weight_v': CCC_WEIGHT_V,\n",
+        "                'ccc_weight_a': CCC_WEIGHT_A,\n",
+        "                'mse_weight_v': MSE_WEIGHT_V,\n",
+        "                'mse_weight_a': MSE_WEIGHT_A\n",
+        "            }\n",
+        "        }, MODEL_SAVE_NAME)\n",
+        "        print(f'  ✓ Best model saved! (CCC: {best_ccc:.4f})')\n",
+        "\n",
+        "        # Log best to wandb (if enabled)\n",
+        "        if USE_WANDB:\n",
+        "            wandb.run.summary['best_ccc'] = best_ccc\n",
+        "            wandb.run.summary['best_ccc_valence'] = val_ccc_v\n",
+        "            wandb.run.summary['best_ccc_arousal'] = val_ccc_a\n",
+        "            wandb.run.summary['best_epoch'] = epoch + 1\n",
+        "            wandb.run.summary['best_rmse_valence'] = val_rmse_v\n",
+        "            wandb.run.summary['best_rmse_arousal'] = val_rmse_a\n",
+        "    else:\n",
+        "        patience_counter += 1\n",
+        "        print(f'  No improvement. Patience: {patience_counter}/{PATIENCE}')\n",
+        "\n",
+        "    if patience_counter >= PATIENCE:\n",
+        "        print(f'\\n Early stopping triggered at epoch {epoch+1}')\n",
+        "        break\n",
+        "\n",
+        "print('\\n' + '='*80)\n",
+        "print('TRAINING COMPLETE')\n",
+        "print('='*80)\n",
+        "print(f'Best validation CCC: {best_ccc:.4f}')\n",
+        "print(f'Model saved as: {MODEL_SAVE_NAME}')\n",
+        "\n",
+        "# Save WandB URL before finish (if enabled)\n",
+        "if USE_WANDB:\n",
+        "    wandb_url = f'https://wandb.ai/{wandb.run.entity}/{wandb.run.project}/runs/{wandb.run.id}'\n",
+        "    wandb.finish()\n",
+        "    print(f'\\n✓ Check your wandb dashboard for training visualization!')\n",
+        "    print(f'   Visit: {wandb_url}')\n",
+        "else:\n",
+        "    print('\\n✓ Training completed without WandB logging')\n",
+        "\n",
+        "print('\\n=== DOWNLOADING MODEL ===')\n",
+        "from google.colab import files\n",
+        "files.download(MODEL_SAVE_NAME)\n",
+        "print('✓ Download complete!')\n",
+        "\n",
+        "print('\\n' + '='*80)\n",
+        "print(f'SEED {RANDOM_SEED} TRAINING COMPLETE!')\n",
+        "print(f'Expected individual CCC: ~0.510-0.515')\n",
+        "print(f'Expected ensemble CCC (3 models): 0.530-0.550')\n",
+        "print('='*80)\n",
+        "print('\\nNext steps:')\n",
+        "print(f'1. Change RANDOM_SEED to next value (123 or 777)')\n",
+        "print(f'2. Run this script again')\n",
+        "print(f'3. After training all 3 models, use ensemble prediction code below')\n",
+        "print('='*80)\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000,
+          "referenced_widgets": [
+            "f734aa01694040ad819415d5934ed88e",
+            "f62d61b6a3724f929dcdeec4a200c753",
+            "196dedb3bb51446496a4829415b02769",
+            "4763c49d8cc542cdb7f96d431562df6f",
+            "15fe6197dd6e471086d947e09e4abca3",
+            "948518a39ae74d81b5b73a68bf71400b",
+            "bce60912386d4bcd83fadd7297062d1e",
+            "9646694ec96a48d68a721545e69fd086",
+            "bbd81e9c66ce471cbcb407144c012728",
+            "74a06ff176a84b59b20274f0ae499a5c",
+            "8e58ddd28f78448ea106038d6f1cf414",
+            "e04e9375f6c447b5941b1891e65018e7",
+            "b972ada615384ccf8ac350c1fdaef472",
+            "7d1c878033c34d3cba256e1a3364fbcb",
+            "ede08f50598942c984c925828a033804",
+            "82a0caec276543368de9e052ce1f9365",
+            "7c7fbde3867d401697ecffab5abd332c",
+            "755eb910d169424e81a4a6fe8c195f21",
+            "dc920c668a7347ad9389c68083c7d1b8",
+            "5412f0653fa8412887c51a23bc293fc5",
+            "066bd7af340446af9d336650e8906112",
+            "c542888277c748e192326c273830fd25",
+            "8f6a0c6a499144d2aadca7fc11c49c41",
+            "40af7142aab04fe2b3ff99772d169239",
+            "e10fc926cc9c45ae813d285f03a02cff",
+            "068846fd85d2493ea4d78abe1a1cdeea",
+            "a107e3453d0b42f1b58ab4e31f251627",
+            "bbe925148c06409989465d4cf3feff03",
+            "823ad51aa505471dabc563c62cf88e89",
+            "19a193b106a34ca9ae9dfa828e907a45",
+            "0685957654244b4e87318b244b3be3d2",
+            "337cda3a2e59401d96df27cda6f99f22",
+            "b72076d028494f1a9ee6cb9e4dfb09ec",
+            "67a69194a601452b85ce45beb5f62f33",
+            "acdb8260e1ad4d6d97d1c51da9b30210",
+            "bdfa8c2d681543c18fecb936d8ce9ea7",
+            "27930878b3394e9da22e06c8655cc5da",
+            "3cb83b6ec4854bbea19fbe4ac94fa5c0",
+            "14d9dbf4b54044b9b361ee8bdf12e190",
+            "bf7085f025e848508e9604a7eb407150",
+            "4755d981752f4ab4aa4ec1babf06df06",
+            "4f533c533de344f1a2bb8d93e1757098",
+            "6c2c4cb970ee41668b9f79265c4078c2",
+            "b4e74ceecca14c09b835b0739f929868",
+            "baf63ae165034ba7904c7f297535d77f",
+            "cad82171d8884c5299bd5679c66698bc",
+            "a803191fd0a44a5d91f08efa87a6ee38",
+            "4967cc55a6224b0995fe51153b1acd93",
+            "b9ca6924e13f498d9cd6961b4afb7fcc",
+            "a49098ce04854c9c9c9b5d910e83b4a1",
+            "dfcf760ebb004a9fb6cff9f194240a3a",
+            "6b68290d8760420b817b228345aef0bf",
+            "7c959e325efb4f6a954fac7f6345a19f",
+            "9377f040e212495d8afe4d08cbaaa8af",
+            "f48f6ec852084e6b958d476e6fe50bae",
+            "545b232f44d241ae9bdf23275e5c0429",
+            "b819bc052c224dfebc7a5c8b431d515b",
+            "230ccd3d730e4c2a8e8a9d9018635951",
+            "fedb2e957dd94096869e67cc721ce035",
+            "d92ad63f233b4682bb23488b498f66b7",
+            "7b2b4d8f8db443b9bd81d8e12e76bffd",
+            "99ab1cbc103b4667b90542847c8af844",
+            "34d9b4cad9194548a9fa887827dc62fb",
+            "e98cb915b0bf47faa54b5729d2699374",
+            "eb32624b120446068365aa3600c6e20c",
+            "26772865a35d4d8a8121ed8289a50736"
+          ]
+        },
+        "id": "Y4OjQrvq-CPi",
+        "outputId": "5f2b18e1-a441-4c51-cad1-6fbed4bb40f4"
+      },
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "================================================================================\n",
+            "v3.0 ENSEMBLE TRAINING - SEED 888\n",
+            "================================================================================\n",
+            "Model will be saved as: subtask2a_seed888_best.pt\n",
+            "Expected CCC: ~0.510-0.515 (individual model)\n",
+            "Ensemble Expected: CCC 0.530-0.550 (3 models)\n",
+            "================================================================================\n",
+            "✓ Random seed set to 888\n",
+            "Using device: cuda\n",
+            "GPU: NVIDIA A100-SXM4-40GB\n",
+            "Memory: 39.56 GB\n",
+            "\n",
+            "=== WANDB DISABLED ===\n",
+            "Training without WandB (faster if connection issues)\n",
+            "\n",
+            "=== MOUNT GOOGLE DRIVE ===\n",
+            "Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount(\"/content/drive\", force_remount=True).\n",
+            "✓ Google Drive mounted successfully\n",
+            "\n",
+            "=== FEATURE EXTRACTION ===\n",
+            "✓ Found file at: /content/drive/MyDrive/Colab Notebooks/SemEval 2026 Task 2/raw/train_subtask2a.csv\n",
+            "✓ Loaded 2764 samples from 137 users\n",
+            "✓ Feature extraction complete: 39 features\n",
+            "\n",
+            "=== STARTING TRAINING ===\n",
+            "================================================================================\n",
+            "v3.0 ENSEMBLE MODEL - PROVEN BEST CONFIGURATION\n",
+            "================================================================================\n",
+            "Random Seed: 888\n",
+            "User Embedding: 64 dim (PROVEN OPTIMAL)\n",
+            "LSTM Hidden: 256 (PROVEN OPTIMAL)\n",
+            "Dropout: 0.2 (PROVEN OPTIMAL)\n",
+            "Arousal CCC Weight: 70% (PROVEN OPTIMAL - DO NOT CHANGE!)\n",
+            "================================================================================\n",
+            "Sequence Length: 7\n",
+            "Batch Size: 10\n",
+            "Epochs: 20, Patience: 7\n",
+            "Valence Loss: 65% CCC + 35% MSE\n",
+            "Arousal Loss: 70% CCC + 30% MSE\n",
+            "================================================================================\n",
+            "Train: 2349 samples, 137 users\n",
+            "Val: 415 samples, 124 users\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "tokenizer_config.json:   0%|          | 0.00/25.0 [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "f734aa01694040ad819415d5934ed88e"
             }
-        }, MODEL_SAVE_NAME)
-        print(f'  ✓ Best model saved! (CCC: {best_ccc:.4f})')
-
-        # Log best to wandb (if enabled)
-        if USE_WANDB:
-            wandb.run.summary['best_ccc'] = best_ccc
-            wandb.run.summary['best_ccc_valence'] = val_ccc_v
-            wandb.run.summary['best_ccc_arousal'] = val_ccc_a
-            wandb.run.summary['best_epoch'] = epoch + 1
-            wandb.run.summary['best_rmse_valence'] = val_rmse_v
-            wandb.run.summary['best_rmse_arousal'] = val_rmse_a
-    else:
-        patience_counter += 1
-        print(f'  No improvement. Patience: {patience_counter}/{PATIENCE}')
-
-    if patience_counter >= PATIENCE:
-        print(f'\n Early stopping triggered at epoch {epoch+1}')
-        break
-
-print('\n' + '='*80)
-print('TRAINING COMPLETE')
-print('='*80)
-print(f'Best validation CCC: {best_ccc:.4f}')
-print(f'Model saved as: {MODEL_SAVE_NAME}')
-
-# Save WandB URL before finish (if enabled)
-if USE_WANDB:
-    wandb_url = f'https://wandb.ai/{wandb.run.entity}/{wandb.run.project}/runs/{wandb.run.id}'
-    wandb.finish()
-    print(f'\n✓ Check your wandb dashboard for training visualization!')
-    print(f'   Visit: {wandb_url}')
-else:
-    print('\n✓ Training completed without WandB logging')
-
-print('\n=== DOWNLOADING MODEL ===')
-from google.colab import files
-files.download(MODEL_SAVE_NAME)
-print('✓ Download complete!')
-
-print('\n' + '='*80)
-print(f'SEED {RANDOM_SEED} TRAINING COMPLETE!')
-print(f'Expected individual CCC: ~0.510-0.515')
-print(f'Expected ensemble CCC (3 models): 0.530-0.550')
-print('='*80)
-print('\nNext steps:')
-print(f'1. Change RANDOM_SEED to next value (123 or 777)')
-print(f'2. Run this script again')
-print(f'3. After training all 3 models, use ensemble prediction code below')
-print('='*80)
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "config.json:   0%|          | 0.00/481 [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "e04e9375f6c447b5941b1891e65018e7"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "vocab.json:   0%|          | 0.00/899k [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "8f6a0c6a499144d2aadca7fc11c49c41"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "merges.txt:   0%|          | 0.00/456k [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "67a69194a601452b85ce45beb5f62f33"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "tokenizer.json:   0%|          | 0.00/1.36M [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "baf63ae165034ba7904c7f297535d77f"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "model.safetensors:   0%|          | 0.00/499M [00:00<?, ?B/s]"
+            ],
+            "application/vnd.jupyter.widget-view+json": {
+              "version_major": 2,
+              "version_minor": 0,
+              "model_id": "545b232f44d241ae9bdf23275e5c0429"
+            }
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Some weights of RobertaModel were not initialized from the model checkpoint at roberta-base and are newly initialized: ['pooler.dense.bias', 'pooler.dense.weight']\n",
+            "You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Total parameters: 129,482,178\n",
+            "Trainable parameters: 129,482,178\n",
+            "Training steps: 4700, Warmup: 705\n",
+            "\n",
+            "=== TRAINING FINAL MODEL v3.0 ENSEMBLE ===\n",
+            "\n",
+            "\n",
+            "Epoch 1/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:13<00:00,  3.20it/s]\n",
+            "/tmp/ipython-input-3590184973.py:591: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)\n",
+            "  train_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])\n",
+            "/tmp/ipython-input-3590184973.py:592: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)\n",
+            "  train_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.87it/s]\n",
+            "/tmp/ipython-input-3590184973.py:631: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)\n",
+            "  val_ccc_v = float(pearsonr(all_valence_true, all_valence_pred)[0])\n",
+            "/tmp/ipython-input-3590184973.py:632: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)\n",
+            "  val_ccc_a = float(pearsonr(all_arousal_true, all_arousal_pred)[0])\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 1 Results:\n",
+            "  Train Loss: 2.2014, Train CCC: 0.0037\n",
+            "  Val Loss: 2.1107, Val CCC: 0.0806\n",
+            "  Val CCC Valence: 0.0561, Val CCC Arousal: 0.1051\n",
+            "  Val RMSE Valence: 1.3051, Val RMSE Arousal: 0.7693\n",
+            "  ✓ Best model saved! (CCC: 0.0806)\n",
+            "\n",
+            "Epoch 2/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.26it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.88it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 2 Results:\n",
+            "  Train Loss: 1.9757, Train CCC: 0.1637\n",
+            "  Val Loss: 2.0606, Val CCC: 0.1770\n",
+            "  Val CCC Valence: 0.0964, Val CCC Arousal: 0.2576\n",
+            "  Val RMSE Valence: 1.2858, Val RMSE Arousal: 0.8058\n",
+            "  ✓ Best model saved! (CCC: 0.1770)\n",
+            "\n",
+            "Epoch 3/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.25it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.87it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 3 Results:\n",
+            "  Train Loss: 1.6810, Train CCC: 0.3820\n",
+            "  Val Loss: 1.7048, Val CCC: 0.4119\n",
+            "  Val CCC Valence: 0.4831, Val CCC Arousal: 0.3406\n",
+            "  Val RMSE Valence: 1.1573, Val RMSE Arousal: 0.7544\n",
+            "  ✓ Best model saved! (CCC: 0.4119)\n",
+            "\n",
+            "Epoch 4/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.25it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.87it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 4 Results:\n",
+            "  Train Loss: 1.2987, Train CCC: 0.5383\n",
+            "  Val Loss: 1.4305, Val CCC: 0.5346\n",
+            "  Val CCC Valence: 0.6478, Val CCC Arousal: 0.4214\n",
+            "  Val RMSE Valence: 1.0322, Val RMSE Arousal: 0.8027\n",
+            "  ✓ Best model saved! (CCC: 0.5346)\n",
+            "\n",
+            "Epoch 5/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.26it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.92it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 5 Results:\n",
+            "  Train Loss: 1.0746, Train CCC: 0.6347\n",
+            "  Val Loss: 1.2311, Val CCC: 0.5991\n",
+            "  Val CCC Valence: 0.7089, Val CCC Arousal: 0.4893\n",
+            "  Val RMSE Valence: 0.9473, Val RMSE Arousal: 0.6991\n",
+            "  ✓ Best model saved! (CCC: 0.5991)\n",
+            "\n",
+            "Epoch 6/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.25it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.93it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 6 Results:\n",
+            "  Train Loss: 0.9575, Train CCC: 0.6813\n",
+            "  Val Loss: 1.2270, Val CCC: 0.5914\n",
+            "  Val CCC Valence: 0.7238, Val CCC Arousal: 0.4591\n",
+            "  Val RMSE Valence: 0.9110, Val RMSE Arousal: 0.7158\n",
+            "  No improvement. Patience: 1/7\n",
+            "\n",
+            "Epoch 7/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.25it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.88it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 7 Results:\n",
+            "  Train Loss: 0.8853, Train CCC: 0.7162\n",
+            "  Val Loss: 1.2165, Val CCC: 0.6130\n",
+            "  Val CCC Valence: 0.7528, Val CCC Arousal: 0.4732\n",
+            "  Val RMSE Valence: 0.9525, Val RMSE Arousal: 0.7113\n",
+            "  ✓ Best model saved! (CCC: 0.6130)\n",
+            "\n",
+            "Epoch 8/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.26it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.89it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 8 Results:\n",
+            "  Train Loss: 0.8002, Train CCC: 0.7494\n",
+            "  Val Loss: 1.1756, Val CCC: 0.6077\n",
+            "  Val CCC Valence: 0.7246, Val CCC Arousal: 0.4909\n",
+            "  Val RMSE Valence: 0.9262, Val RMSE Arousal: 0.7085\n",
+            "  No improvement. Patience: 1/7\n",
+            "\n",
+            "Epoch 9/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.91it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 9 Results:\n",
+            "  Train Loss: 0.7230, Train CCC: 0.7802\n",
+            "  Val Loss: 1.1340, Val CCC: 0.6211\n",
+            "  Val CCC Valence: 0.7388, Val CCC Arousal: 0.5033\n",
+            "  Val RMSE Valence: 0.8881, Val RMSE Arousal: 0.6978\n",
+            "  ✓ Best model saved! (CCC: 0.6211)\n",
+            "\n",
+            "Epoch 10/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.89it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 10 Results:\n",
+            "  Train Loss: 0.6719, Train CCC: 0.7984\n",
+            "  Val Loss: 1.1560, Val CCC: 0.6140\n",
+            "  Val CCC Valence: 0.7458, Val CCC Arousal: 0.4821\n",
+            "  Val RMSE Valence: 0.8782, Val RMSE Arousal: 0.7493\n",
+            "  No improvement. Patience: 1/7\n",
+            "\n",
+            "Epoch 11/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.92it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 11 Results:\n",
+            "  Train Loss: 0.6073, Train CCC: 0.8246\n",
+            "  Val Loss: 1.1996, Val CCC: 0.6105\n",
+            "  Val CCC Valence: 0.7327, Val CCC Arousal: 0.4883\n",
+            "  Val RMSE Valence: 0.9293, Val RMSE Arousal: 0.6921\n",
+            "  No improvement. Patience: 2/7\n",
+            "\n",
+            "Epoch 12/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.91it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 12 Results:\n",
+            "  Train Loss: 0.5705, Train CCC: 0.8424\n",
+            "  Val Loss: 1.2135, Val CCC: 0.6075\n",
+            "  Val CCC Valence: 0.7275, Val CCC Arousal: 0.4876\n",
+            "  Val RMSE Valence: 0.9544, Val RMSE Arousal: 0.7280\n",
+            "  No improvement. Patience: 3/7\n",
+            "\n",
+            "Epoch 13/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.90it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 13 Results:\n",
+            "  Train Loss: 0.5257, Train CCC: 0.8563\n",
+            "  Val Loss: 1.1826, Val CCC: 0.6091\n",
+            "  Val CCC Valence: 0.7287, Val CCC Arousal: 0.4896\n",
+            "  Val RMSE Valence: 0.9174, Val RMSE Arousal: 0.7481\n",
+            "  No improvement. Patience: 4/7\n",
+            "\n",
+            "Epoch 14/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  9.90it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 14 Results:\n",
+            "  Train Loss: 0.4858, Train CCC: 0.8720\n",
+            "  Val Loss: 1.1770, Val CCC: 0.6138\n",
+            "  Val CCC Valence: 0.7438, Val CCC Arousal: 0.4838\n",
+            "  Val RMSE Valence: 0.9091, Val RMSE Arousal: 0.7253\n",
+            "  No improvement. Patience: 5/7\n",
+            "\n",
+            "Epoch 15/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:12<00:00,  3.25it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  8.97it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 15 Results:\n",
+            "  Train Loss: 0.4523, Train CCC: 0.8864\n",
+            "  Val Loss: 1.1554, Val CCC: 0.6198\n",
+            "  Val CCC Valence: 0.7470, Val CCC Arousal: 0.4926\n",
+            "  Val RMSE Valence: 0.9001, Val RMSE Arousal: 0.7145\n",
+            "  No improvement. Patience: 6/7\n",
+            "\n",
+            "Epoch 16/20\n",
+            "--------------------------------------------------------------------------------\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Training: 100%|██████████| 235/235 [01:11<00:00,  3.27it/s]\n",
+            "Validation: 100%|██████████| 42/42 [00:04<00:00,  8.98it/s]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Epoch 16 Results:\n",
+            "  Train Loss: 0.4259, Train CCC: 0.8944\n",
+            "  Val Loss: 1.1591, Val CCC: 0.6151\n",
+            "  Val CCC Valence: 0.7410, Val CCC Arousal: 0.4891\n",
+            "  Val RMSE Valence: 0.8995, Val RMSE Arousal: 0.7055\n",
+            "  No improvement. Patience: 7/7\n",
+            "\n",
+            " Early stopping triggered at epoch 16\n",
+            "\n",
+            "================================================================================\n",
+            "TRAINING COMPLETE\n",
+            "================================================================================\n",
+            "Best validation CCC: 0.6211\n",
+            "Model saved as: subtask2a_seed888_best.pt\n",
+            "\n",
+            "✓ Training completed without WandB logging\n",
+            "\n",
+            "=== DOWNLOADING MODEL ===\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.Javascript object>"
+            ],
+            "application/javascript": [
+              "\n",
+              "    async function download(id, filename, size) {\n",
+              "      if (!google.colab.kernel.accessAllowed) {\n",
+              "        return;\n",
+              "      }\n",
+              "      const div = document.createElement('div');\n",
+              "      const label = document.createElement('label');\n",
+              "      label.textContent = `Downloading \"${filename}\": `;\n",
+              "      div.appendChild(label);\n",
+              "      const progress = document.createElement('progress');\n",
+              "      progress.max = size;\n",
+              "      div.appendChild(progress);\n",
+              "      document.body.appendChild(div);\n",
+              "\n",
+              "      const buffers = [];\n",
+              "      let downloaded = 0;\n",
+              "\n",
+              "      const channel = await google.colab.kernel.comms.open(id);\n",
+              "      // Send a message to notify the kernel that we're ready.\n",
+              "      channel.send({})\n",
+              "\n",
+              "      for await (const message of channel.messages) {\n",
+              "        // Send a message to notify the kernel that we're ready.\n",
+              "        channel.send({})\n",
+              "        if (message.buffers) {\n",
+              "          for (const buffer of message.buffers) {\n",
+              "            buffers.push(buffer);\n",
+              "            downloaded += buffer.byteLength;\n",
+              "            progress.value = downloaded;\n",
+              "          }\n",
+              "        }\n",
+              "      }\n",
+              "      const blob = new Blob(buffers, {type: 'application/binary'});\n",
+              "      const a = document.createElement('a');\n",
+              "      a.href = window.URL.createObjectURL(blob);\n",
+              "      a.download = filename;\n",
+              "      div.appendChild(a);\n",
+              "      a.click();\n",
+              "      div.remove();\n",
+              "    }\n",
+              "  "
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.Javascript object>"
+            ],
+            "application/javascript": [
+              "download(\"download_4e0ce71c-e6dc-4b7e-a084-a8c880867464\", \"subtask2a_seed888_best.pt\", 1549362448)"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "✓ Download complete!\n",
+            "\n",
+            "================================================================================\n",
+            "SEED 888 TRAINING COMPLETE!\n",
+            "Expected individual CCC: ~0.510-0.515\n",
+            "Expected ensemble CCC (3 models): 0.530-0.550\n",
+            "================================================================================\n",
+            "\n",
+            "Next steps:\n",
+            "1. Change RANDOM_SEED to next value (123 or 777)\n",
+            "2. Run this script again\n",
+            "3. After training all 3 models, use ensemble prediction code below\n",
+            "================================================================================\n"
+          ]
+        }
+      ]
+    }
+  ]
+}

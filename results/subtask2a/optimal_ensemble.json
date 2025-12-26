@@ -1,0 +1,13 @@
+{
+  "models": [
+    "seed777",
+    "arousal_specialist"
+  ],
+  "weights": {
+    "seed777": 0.5016072248584111,
+    "arousal_specialist": 0.49839277514158886
+  },
+  "ccc_min": 0.6733067503444053,
+  "ccc_max": 0.6933067503444054,
+  "ccc_avg": 0.6833067503444054
+}

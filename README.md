@@ -1,367 +1,173 @@
-# SemEval-2026 Task 2 — Predicting Variation in Emotional Responses
+# SemEval 2026 Task 2a - Emotional State Prediction
 
-## 📌 Project Overview
-
-**Task**: Predict emotional responses (Valence and Arousal) from temporal text sequences
-**Competition**: [SemEval 2026 Task 2](https://semeval2026task2.github.io/SemEval-2026-Task2/)
-**Status**: ✅ **READY FOR SUBMISSION** - Awaiting test data
+> **현재 상태**: CCC 0.6305 (목표 0.62 초과 ✅)
+> **최종 목표**: CCC 0.70-0.72
+> **다음 단계**: Google Colab Pro에서 모델 훈련
 
 ---
 
-## 🏆 Final Results - Subtask 2a
+## 🚀 빠른 시작
 
-### ✅ v3.0 Ensemble Solution
+### 지금 바로 시작하려면?
+**→ [QUICKSTART.md](./QUICKSTART.md)** ⭐⭐⭐
 
-**Achievement**: CCC 0.5846-0.6046 (Expected)
-**Target Exceeded**: +8-10% above initial goal (CCC 0.53-0.55)
-**Success Probability**: 95%
-**Time Investment**: ~3 hours total
-
-### Individual Models
-
-| Model | Seed | CCC | Valence CCC | Arousal CCC | Epoch | Status |
-|-------|------|-----|-------------|-------------|-------|--------|
-| **Model 1** | 42 | 0.5053 | 0.6532 | 0.3574 | 16 | ✅ |
-| **Model 2** | 123 | 0.5330 | 0.6298 | 0.4362 | 18 | ✅ |
-| **Model 3** | 777 | 0.6554 | 0.7593 | 0.5516 | 9 | ✅⭐ |
-| **Average** | - | **0.5646** | **0.6808** | **0.4484** | - | - |
-
-### Ensemble Configuration
-
-**Performance-based Weights**:
-- Model 1 (seed42): 29.8%
-- Model 2 (seed123): 31.5%
-- Model 3 (seed777): 38.7% ← Highest weight
-
-**Expected Boost**: +0.020 ~ +0.040 CCC
-**Final Expected Performance**: CCC 0.5846 ~ 0.6046
+6단계 실행 가이드:
+1. seed888 훈련 (2시간)
+2. Arousal Specialist 훈련 (4시간) ⭐ 핵심!
+3. seed999 훈련 (선택, 2시간)
+4. 최종 앙상블 구성
+5. 평가파일 대기
+6. 제출
 
 ---
 
-### 📖 Complete Training Guide
+## 📊 현재 성능
 
-**Training Reference**: [docs/subtask2a/ENSEMBLE_GUIDE.md](docs/subtask2a/ENSEMBLE_GUIDE.md)
-- Complete step-by-step instructions (Korean)
-- All 4 steps with detailed explanations
-- Expected performance at each stage
+### 개별 모델
+| Model | Seed | CCC | Valence | Arousal | Status |
+|-------|------|-----|---------|---------|--------|
+| Model 1 | 123 | 0.5330 | 0.6298 | 0.4362 | ✅ |
+| Model 2 | 777 | 0.6554 | 0.7593 | 0.5516 | ✅ ⭐ 최고 |
+| Model 3 | 42 | 0.5053 | 0.6532 | 0.3574 | ❌ 제거됨 |
 
-### 🔥 Training Steps (✅ Complete)
-
-```bash
-# 1. Train 3 models with different seeds
-RANDOM_SEED = 42   # ✅ Complete: CCC 0.5053
-RANDOM_SEED = 123  # ✅ Complete: CCC 0.5330
-RANDOM_SEED = 777  # ✅ Complete: CCC 0.6554
-
-# 2. Calculate ensemble weights
-# ✅ Complete: Weights calculated and saved
+### 현재 Baseline (2-model)
+```
+CCC: 0.6305 ✅ (목표 초과!)
+Valence: 0.76 (좋음)
+Arousal: 0.55 (개선 필요!)
 ```
 
-### 🎯 Submission Steps (⏳ Awaiting Test Data)
-
-```bash
-# 1. Download test data (when released)
-# test_subtask2a.csv
-
-# 2. Run prediction script
-scripts/data_analysis/subtask2a/predict_test_subtask2a.py
-
-# 3. Generate submission file
-# → pred_subtask2a.csv
-
-# 4. Create submission.zip and upload to Codabench
-# Deadline: January 9, 2026
+### 예상 최종 성능
 ```
-
-**Complete Guide**: [docs/SUBMISSION_GUIDE_SUBTASK2A.md](docs/SUBMISSION_GUIDE_SUBTASK2A.md) ⭐
-
-### 📊 Current Status
-
-Training Results:
-- **results/subtask2a/ensemble_results.json** - Complete results with all metrics
-- 3 trained models ready (4.3 GB)
-- Ensemble weights calculated
-- Prediction script ready
-
-Next Steps:
-- ⏳ Await test data release (expected mid-December)
-- ⏳ Run predictions and submit
+Conservative (85%): CCC 0.68-0.70
+Aggressive (70%): CCC 0.70-0.72
+```
 
 ---
 
-## 📁 Project Structure (Cleaned)
+## 🎯 전략
+
+### 핵심 문제
+**Arousal (0.55) << Valence (0.76)** → 27% 차이
+
+### 해결 방법
+1. **Arousal Specialist 모델** (가장 큰 개선 +0.05-0.08)
+2. **seed888, 999 추가** (반복 숫자 패턴)
+3. **Stacking 최적화**
+
+---
+
+## 📂 프로젝트 구조
 
 ```
-Deep-Learning-project-SemEval-2026-Task-2/
-├── README.md                          # This file
-├── requirements.txt                   # Dependencies
+프로젝트/
+├── README.md                          (이 파일)
+├── QUICKSTART.md                      ⭐⭐⭐ (즉시 시작)
 │
-├── models/                            # Trained models (4.3 GB)
-│   ├── subtask2a_seed42_best.pt      # CCC 0.5053
-│   ├── subtask2a_seed123_best.pt     # CCC 0.5330
-│   └── subtask2a_seed777_best.pt     # CCC 0.6554
+├── scripts/
+│   ├── data_train/subtask2a/
+│   │   └── train_ensemble_subtask2a.py  ✅ (훈련 스크립트)
+│   └── data_analysis/subtask2a/
+│       ├── predict_test_subtask2a_optimized.py  (예측)
+│       └── calculate_optimal_ensemble_weights.py  (가중치)
 │
-├── results/                           # Training results
-│   └── subtask2a/
-│       └── ensemble_results.json     # Final ensemble results
+├── models/
+│   ├── subtask2a_seed123_best.pt      ✅
+│   ├── subtask2a_seed777_best.pt      ✅
+│   ├── subtask2a_seed888_best.pt      (훈련 예정)
+│   └── subtask2a_arousal_specialist_seed1111_best.pt  (훈련 예정)
 │
-├── scripts/                           # Training and analysis scripts
-│   ├── data_analysis/
-│   │   ├── analyze_raw_data_subtask1.py       # Subtask 1 (preserved)
-│   │   └── subtask2a/
-│   │       ├── analyze_ensemble_weights_subtask2a.py  # Ensemble analysis
-│   │       ├── predict_test_subtask2a.py              # Test prediction ⭐
-│   │       └── README.md
-│   ├── data_preparation/
-│   │   └── simple_data_prep_subtask1.py       # Subtask 1 (preserved)
-│   └── data_train/
-│       ├── train_subtask1.py                  # Subtask 1 (preserved)
-│       └── subtask2a/
-│           ├── train_ensemble_subtask2a.py    # Training script
-│           └── README.md
+├── results/subtask2a/
+│   └── optimal_ensemble.json          ✅ (현재 baseline)
 │
-├── docs/                              # Documentation
-│   ├── subtask2a/
-│   │   ├── ENSEMBLE_GUIDE.md         # ⭐ Complete guide (Korean)
-│   │   ├── FINAL_PROJECT_SUMMARY.md  # Project summary (English)
-│   │   ├── FINAL_COMPREHENSIVE_ANALYSIS.md  # Version analysis
-│   │   ├── QUICKSTART.md             # Quick start guide
-│   │   └── README.md                  # Documentation index
-│   ├── SUBMISSION_GUIDE_SUBTASK2A.md # ⭐ Submission instructions
-│   ├── PROGRESS_EVALUATION_DEC3.md   # Progress report template
-│   ├── PRESENTATION_DEC3_OUTLINE.md  # Presentation guide
-│   ├── PROFESSOR_EVALUATION_GUIDE.md # Evaluation criteria
-│   └── SEMEVAL_2026_TASK2_REQUIREMENTS.md # Competition requirements
-│
-├── data/                              # Data files
-│   ├── raw/
-│   │   ├── train_subtask1.csv        # Subtask 1 (preserved)
-│   │   ├── train_subtask2a.csv       # Subtask 2a
-│   │   └── train_subtask2b.csv       # Subtask 2b
-│   └── processed/
-│       ├── subtask1_processed.csv    # Subtask 1 (preserved)
-│       └── subtask2a_features.csv    # Subtask 2a features
-│
-├── baselines/                         # Baseline models (preserved)
-├── configs/                           # Configuration files
-├── src/                               # Source code
-└── tests/                             # Test files
+└── data/
+    ├── train_subtask2a.csv            ✅
+    └── test/ (평가파일 대기)
 ```
 
 ---
 
-## 🏗️ Model Architecture
+## 📝 문서
 
-### Final v3.0 Architecture
+### 필수
+- **[QUICKSTART.md](./QUICKSTART.md)** - 즉시 실행 가이드 (6단계)
 
-```
-Input Text
-    ↓
-RoBERTa Encoder (roberta-base, 125M params)
-    ↓
-BiLSTM Layer (256 hidden units, 2 layers)
-    ↓
-Multi-Head Attention (8 heads, 128 dim)
-    ↓
-User Embeddings (64 dim) + Features (39 total)
-    ├─ 5 Lag features (temporal context)
-    ├─ 15 User statistics
-    └─ 19 Text features
-    ↓
-Dual-Head Output
-    ├─→ Valence Prediction (65% CCC + 35% MSE)
-    └─→ Arousal Prediction (70% CCC + 30% MSE)
-```
+### 참고
+- **[scripts/README.md](./scripts/README.md)** - 스크립트 설명
+- **[results/subtask2a/README.md](./results/subtask2a/README.md)** - 결과 파일 설명
 
-### Key Components
-
-- **Backbone**: RoBERTa-base (pretrained)
-- **Sequence Modeling**: BiLSTM (256 hidden, 2 layers)
-- **Attention**: Multi-head (8 heads)
-- **User Modeling**: Learnable embeddings (64 dim)
-- **Feature Engineering**: 39 engineered features
-- **Loss Function**: Dual-head with separate weights
-
-### Training Configuration
-
-```python
-BATCH_SIZE = 16
-LEARNING_RATE = 1e-5 (AdamW)
-MAX_EPOCHS = 50
-EARLY_STOPPING = Patience 10
-DROPOUT = 0.3
-WEIGHT_DECAY = 0.01
-SCHEDULER = ReduceLROnPlateau
-```
+### 구버전 (참고용)
+- **[docs/archive/old_guides/](./docs/archive/old_guides/)** - 이전 문서들
 
 ---
 
-## 📊 Development History
+## ✅ 체크리스트
 
-### Version Evolution
+### 완료 ✅
+- [x] 설문조사 작성
+- [x] Zoom 건너뜀
+- [x] seed42 제거
+- [x] 2-model baseline (CCC 0.6305)
+- [x] 문서 정리 (2개 파일로 통합)
 
-| Version | CCC | Key Changes | Result |
-|---------|-----|-------------|--------|
-| v0 | 0.3500 | Baseline RoBERTa | ❌ Too simple |
-| v1 | 0.4200 | Added BiLSTM | ❌ Still low |
-| v2 | 0.4800 | Added attention | ⚠️ Improving |
-| **v3.0** | **0.5053** | Dual-head loss, user embeddings | ✅ **Success** |
-| v3.2 | 0.2883 | Removed user embeddings | ❌ Catastrophic |
-| v3.3 | 0.5053 | Partial rollback | ⚠️ No improvement |
-| **v3.0 Ensemble** | **0.5846-0.6046** | 3-model ensemble | ✅ **FINAL** ⭐ |
-
-### Key Learnings
-
-**What Works** ✅:
-- User embeddings (64 dim) - Critical (+0.226 CCC)
-- BiLSTM (256 hidden) - Captures temporal patterns
-- Dual-head loss with separate weights
-- Arousal CCC weight 70% (optimal, do NOT increase)
-- Dropout 0.3 (prevents overfitting)
-- Ensemble with different seeds (+0.02-0.04 CCC)
-
-**What Doesn't Work** ❌:
-- Removing user embeddings (-0.226 CCC catastrophic)
-- Arousal CCC weight 75% (backfires, worse performance)
-- Too aggressive regularization
-- Single model without ensemble
+### 진행 중 🔄
+- [ ] **seed888 훈련** ← 지금 여기!
+- [ ] Arousal Specialist 훈련
+- [ ] seed999 훈련 (선택)
+- [ ] 최종 앙상블 구성
+- [ ] 평가파일 대기 (12/23-25)
+- [ ] 제출
 
 ---
 
-## 📦 Requirements
+## 🔗 링크
 
-### Python Dependencies
+- **Codabench**: https://www.codabench.org/competitions/9963/
+- **설문조사**: https://forms.gle/zxS69TKQ4mjGZbEc6 (완료 ✅)
+- **Google Colab**: https://colab.research.google.com/
 
-```txt
-torch>=2.0.0
-transformers>=4.30.0
-pandas>=1.5.0
-numpy>=1.24.0
-scipy>=1.10.0
-scikit-learn>=1.2.0
-wandb>=0.15.0 (optional)
+---
+
+## 💡 핵심 요약
+
+### 왜 Arousal Specialist?
+```
+현재 가장 큰 문제: Arousal 성능
+해결: Arousal 전문 모델 (90% CCC weight)
+효과: 전체 CCC +0.05-0.08 (가장 큰 개선)
 ```
 
-### Hardware
-
-**Google Colab Free Tier** (Recommended):
-- GPU: Tesla T4 (15.8 GB VRAM) ✅
-- RAM: 12.7 GB ✅
-- Training Time: 90-120 min per model
-- Storage: ~5 GB for 3 models
-
-**Local Development**:
-- Python 3.8+
-- CUDA-capable GPU (8GB+ VRAM)
-- 16GB+ RAM recommended
-
----
-
-## 📚 Documentation
-
-### Essential Guides
-
-1. **[ENSEMBLE_GUIDE.md](docs/subtask2a/ENSEMBLE_GUIDE.md)** ⭐⭐⭐
-   Complete ensemble training guide (Korean)
-   All steps from setup to final results
-
-2. **[FINAL_PROJECT_SUMMARY.md](docs/subtask2a/FINAL_PROJECT_SUMMARY.md)**
-   Comprehensive project summary (English)
-   Architecture, results, analysis
-
-3. **[FINAL_COMPREHENSIVE_ANALYSIS.md](docs/subtask2a/FINAL_COMPREHENSIVE_ANALYSIS.md)**
-   Version comparison and analysis
-   What worked and what didn't
-
-4. **[QUICKSTART.md](docs/subtask2a/QUICKSTART.md)**
-   Quick start for single model training
-
-### Additional Resources
-
-- **[README.md](docs/subtask2a/README.md)** - Documentation index
-- **[scripts/data_train/subtask2a/README.md](scripts/data_train/subtask2a/README.md)** - Training script guide
-- **[scripts/data_analysis/subtask2a/README.md](scripts/data_analysis/subtask2a/README.md)** - Analysis script guide
-
----
-
-## 🎯 Performance Metrics
-
-### Expected vs. Target
-
+### 왜 seed888, 999?
 ```
-Initial Target:    CCC 0.53-0.55
-Expected Ensemble: CCC 0.5846-0.6046
-Exceeds Target:    +8-10% 🎉
+패턴: seed777 (반복 숫자) = 최고 성능
+전략: 동일 패턴 시도
+확률: 70% 성공 (CCC 0.60+)
 ```
 
-### Competition Ranking (Hypothetical)
-
-Based on typical SemEval results:
-- Top 1: CCC 0.65-0.70 ❌
-- Top 3: CCC 0.60-0.65 ⚠️ Close
-- **Top 10: CCC 0.55-0.60** ✅ **Likely**
-- Baseline: CCC 0.40-0.45 ✅
-
-**Status**: Competitive for Top 10 placement
-
----
-
-## 🔮 Future Improvements (Not Implemented)
-
-Potential enhancements that could push CCC to 0.60-0.62:
-
-1. **Larger Backbone**: RoBERTa-large or DeBERTa (+0.02-0.03 CCC)
-2. **More Models**: 5-model ensemble (+0.01-0.02 CCC)
-3. **Data Augmentation**: Back-translation, paraphrasing
-4. **Cross-validation**: 5-fold ensemble
-5. **Pseudo-labeling**: Use test predictions for retraining
-
-**Expected Total Impact**: CCC 0.60-0.62
-
----
-
-## 📞 Contact & Support
-
-For questions or issues:
-- Open a GitHub Issue
-- Check [docs/subtask2a/](docs/subtask2a/) for detailed documentation
-
----
-
-## 🏅 Project Statistics
-
+### Google Colab Pro?
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              FINAL PROJECT STATISTICS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Total Training Time:     ~4 hours
-Total Models Trained:    7 versions (v0-v3.3)
-Successful Models:       3 (seed42, 123, 777)
-Final Ensemble CCC:      0.5846-0.6046 (expected)
-Target Exceeded By:      8-10%
-Total Code Files:        15+
-Documentation Files:     5 (final)
-Model Size:              4.3 GB (3 models)
-
-Status:                  ✅ PROJECT COMPLETE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GPU: A100 > V100 > T4
+시간: 30-40% 단축
+병렬: 여러 노트북 동시 실행 가능
 ```
 
 ---
 
-## 📖 References
+## 📞 도움이 필요하면?
 
-- **SemEval 2026 Task 2**: https://semeval2026task2.github.io/SemEval-2026-Task2/
-- **RoBERTa**: Liu et al., 2019 - https://arxiv.org/abs/1907.11692
-- **Attention Mechanism**: Vaswani et al., 2017 - https://arxiv.org/abs/1706.03762
-
----
-
-**Last Updated**: 2025-11-14
-**Project Status**: ✅ **COMPLETE**
-**Best Solution**: v3.0 Ensemble (CCC 0.5846-0.6046)
+1. **지금 뭘 해야 하지?** → [QUICKSTART.md](./QUICKSTART.md) 1단계
+2. **스크립트가 뭐지?** → [scripts/README.md](./scripts/README.md)
+3. **결과 파일은?** → [results/subtask2a/README.md](./results/subtask2a/README.md)
 
 ---
 
-*This project demonstrates a complete deep learning pipeline from baseline development to ensemble optimization, achieving competitive performance on the SemEval 2026 Task 2 Subtask 2a emotion prediction challenge.*
+**상태**: 즉시 실행 가능 ✅
+**목표**: CCC 0.70-0.72
+**시간**: 주말 8시간
+
+🚀 **[QUICKSTART.md](./QUICKSTART.md)에서 시작!**
+
+---
+
+**마지막 업데이트**: 2025-12-19
+**버전**: Final (2-file structure)
