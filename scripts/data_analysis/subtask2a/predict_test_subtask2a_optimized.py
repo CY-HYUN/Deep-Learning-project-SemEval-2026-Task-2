@@ -61,14 +61,14 @@ import sys
 if 'google.colab' in sys.modules or os.path.exists('/content'):
     # Colab environment
     BASE_DIR = '/content/drive/MyDrive/SemEval 2026 Task 2'
-    TEST_DATA_PATH = f'{BASE_DIR}/subtask2a/test_subtask2a.csv'
+    TEST_DATA_PATH = f'{BASE_DIR}/subtask2a/test_subtask2.csv'
     MODEL_DIR = f'{BASE_DIR}/models'
     RESULTS_DIR = f'{BASE_DIR}/scripts'
     print('🔍 Detected: Google Colab environment')
 else:
     # Local environment
     BASE_DIR = 'D:/Study/Github/Deep-Learning-project-SemEval-2026-Task-2'
-    TEST_DATA_PATH = f'{BASE_DIR}/data/test/test_subtask2a.csv'
+    TEST_DATA_PATH = f'{BASE_DIR}/data/test/test_subtask2.csv'
     MODEL_DIR = f'{BASE_DIR}/models'
     RESULTS_DIR = f'{BASE_DIR}/results/subtask2a'
     print('🔍 Detected: Local environment')
@@ -417,7 +417,7 @@ except FileNotFoundError:
 print('\n=== Loading Test Data ===')
 if not os.path.exists(TEST_DATA_PATH):
     print(f'❌ Error: Test data not found at {TEST_DATA_PATH}')
-    print('Please download test_subtask2a.csv and place it in the current directory')
+    print('Please download test_subtask2.csv and place it in the data/test directory')
     print('Or update TEST_DATA_PATH variable')
     exit(1)
 

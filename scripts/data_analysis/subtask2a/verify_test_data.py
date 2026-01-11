@@ -1,94 +1,146 @@
 """
-평가 데이터 검증 스크립트
-평가파일을 받은 후 즉시 실행하여 형식 확인
+Test Data Verification Script for SemEval 2026 Task 2, Subtask 2a
+Verifies the structure and compatibility of downloaded test data.
+
+Author: Hyun Chang-Yong
+Date: January 6, 2026
 """
 
 import pandas as pd
 import os
+from pathlib import Path
+
+# Paths
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+TEST_DIR = BASE_DIR / 'data' / 'test'
+TEST_FILE = TEST_DIR / 'test_subtask2.csv'
+MARKER_FILE = TEST_DIR / 'subtask2a_forecasting_user_marker.csv'
 
 def verify_test_data():
-    """평가 데이터 형식 검증"""
+    """Verify test data structure and identify prediction targets."""
 
-    print("=" * 60)
-    print("평가 데이터 검증 시작")
-    print("=" * 60)
+    print("=" * 80)
+    print("SemEval 2026 Task 2 - Test Data Verification")
+    print("=" * 80)
 
-    # 파일 경로
-    test_file = 'data/test/test_subtask2a.csv'
+    # 1. Check file existence
+    print("\n[1] Checking file existence...")
+    print(f"Test file: {TEST_FILE}")
+    print(f"Exists: {TEST_FILE.exists()}")
+    print(f"Marker file: {MARKER_FILE}")
+    print(f"Exists: {MARKER_FILE.exists()}")
 
-    # 1. 파일 존재 확인
-    if not os.path.exists(test_file):
-        print(f"❌ 파일이 없습니다: {test_file}")
-        print(f"   다운로드한 파일을 {test_file} 경로에 저장하세요.")
-        return False
+    if not TEST_FILE.exists() or not MARKER_FILE.exists():
+        print("\n❌ ERROR: Test data files not found!")
+        return
 
-    print(f"✅ 파일 발견: {test_file}")
+    # 2. Load test data
+    print("\n[2] Loading test data...")
+    test_df = pd.read_csv(TEST_FILE)
+    marker_df = pd.read_csv(MARKER_FILE)
 
-    # 2. 파일 로드
-    try:
-        test_df = pd.read_csv(test_file)
-        print(f"✅ 파일 로드 성공: {len(test_df)} rows")
-    except Exception as e:
-        print(f"❌ 파일 로드 실패: {e}")
-        return False
+    print(f"Test data shape: {test_df.shape}")
+    print(f"Marker data shape: {marker_df.shape}")
 
-    # 3. 컬럼 확인
-    print(f"\n컬럼 목록: {test_df.columns.tolist()}")
+    # 3. Check columns
+    print("\n[3] Checking columns...")
+    print(f"Test columns: {list(test_df.columns)}")
+    print(f"Marker columns: {list(marker_df.columns)}")
 
-    expected_columns = ['user_id', 'is_forecasting_user']
-    missing_cols = set(expected_columns) - set(test_df.columns)
+    # 4. Check is_forecasting_user field
+    print("\n[4] Analyzing is_forecasting_user field...")
 
-    if missing_cols:
-        print(f"⚠️ 예상 컬럼 누락: {missing_cols}")
-    else:
-        print(f"✅ 필수 컬럼 확인됨: {expected_columns}")
+    if 'is_forecasting_user' in marker_df.columns:
+        print(f"\nMarker file is_forecasting_user distribution:")
+        print(marker_df['is_forecasting_user'].value_counts())
+        print(f"\nPercentage:")
+        print(marker_df['is_forecasting_user'].value_counts(normalize=True) * 100)
 
-    # 4. Forecasting users 확인
-    if 'is_forecasting_user' in test_df.columns:
-        forecasting_users = test_df[test_df['is_forecasting_user'] == True]
-        print(f"\n✅ Forecasting users: {len(forecasting_users)}명")
-        print(f"   User IDs: {sorted(forecasting_users['user_id'].tolist())}")
-    else:
-        print(f"\n⚠️ 'is_forecasting_user' 컬럼이 없습니다")
+    # 5. Check prediction targets (empty state_change values)
+    print("\n[5] Identifying prediction targets...")
 
-    # 5. Training data와 비교
-    train_file = 'data/raw/train_subtask2a.csv'
+    if 'state_change_valence' in marker_df.columns and 'state_change_arousal' in marker_df.columns:
+        # Count rows with empty state_change values
+        empty_valence = marker_df['state_change_valence'].isna()
+        empty_arousal = marker_df['state_change_arousal'].isna()
+        both_empty = empty_valence & empty_arousal
 
-    if os.path.exists(train_file):
-        train_df = pd.read_csv(train_file)
-        train_users = set(train_df['user_id'].unique())
+        print(f"\nRows with empty state_change_valence: {empty_valence.sum()}")
+        print(f"Rows with empty state_change_arousal: {empty_arousal.sum()}")
+        print(f"Rows with BOTH empty: {both_empty.sum()}")
 
-        if 'user_id' in test_df.columns:
-            test_users = set(test_df['user_id'].unique())
+        # Check is_forecasting_user for these rows
+        if 'is_forecasting_user' in marker_df.columns:
+            print(f"\nis_forecasting_user values for rows with empty state_change:")
+            forecasting_targets = marker_df[both_empty]
+            print(forecasting_targets['is_forecasting_user'].value_counts())
+            print(f"\n✅ CRITICAL FINDING:")
+            print(f"   Prediction targets have is_forecasting_user = {forecasting_targets['is_forecasting_user'].mode()[0] if len(forecasting_targets) > 0 else 'N/A'}")
 
-            # 겹치는 사용자 확인
-            overlap = test_users & train_users
-            new_users = test_users - train_users
+    # 6. Check user_id distribution
+    print("\n[6] Analyzing user_id distribution...")
 
-            print(f"\n사용자 비교:")
-            print(f"  Training users: {len(train_users)}명")
-            print(f"  Test users: {len(test_users)}명")
-            print(f"  Overlap: {len(overlap)}명")
+    if 'user_id' in marker_df.columns:
+        unique_users = marker_df['user_id'].nunique()
+        print(f"Total unique users: {unique_users}")
 
-            if new_users:
-                print(f"  ⚠️ 새로운 사용자: {len(new_users)}명")
-                print(f"     {sorted(list(new_users))[:10]}...")  # 처음 10명만
-            else:
-                print(f"  ✅ 모든 test users가 training에 존재")
+        # Find users needing predictions
+        if 'state_change_valence' in marker_df.columns:
+            forecasting_users = marker_df[marker_df['state_change_valence'].isna()]['user_id'].unique()
+            print(f"Users needing predictions: {len(forecasting_users)}")
+            print(f"User IDs: {sorted(forecasting_users)[:20]}{'...' if len(forecasting_users) > 20 else ''}")
 
-    # 6. 데이터 미리보기
-    print(f"\n데이터 미리보기:")
-    print(test_df.head(10))
+    # 7. Sample data inspection
+    print("\n[7] Sample data inspection...")
+    print("\nFirst 5 rows of marker file:")
+    print(marker_df.head())
 
-    # 7. 통계
-    print(f"\n데이터 통계:")
-    print(test_df.describe())
+    print("\nRows needing prediction (first 5):")
+    if 'state_change_valence' in marker_df.columns:
+        needs_prediction = marker_df[marker_df['state_change_valence'].isna()]
+        print(needs_prediction.head())
 
-    print("\n" + "=" * 60)
-    print("✅ 검증 완료")
-    print("=" * 60)
+    # 8. Compatibility check with prediction script
+    print("\n[8] Prediction script compatibility check...")
 
-    return True
+    required_cols_test = ['user_id', 'text_id', 'text', 'timestamp', 'valence', 'arousal']
+    required_cols_marker = ['user_id', 'text_id', 'state_change_valence', 'state_change_arousal', 'is_forecasting_user']
 
-if __name__ == "__main__":
-    verify_test_data()
+    test_has_all = all(col in test_df.columns for col in required_cols_test)
+    marker_has_all = all(col in marker_df.columns for col in required_cols_marker)
+
+    print(f"\nTest file has all required columns: {test_has_all}")
+    if not test_has_all:
+        missing = [col for col in required_cols_test if col not in test_df.columns]
+        print(f"  Missing: {missing}")
+
+    print(f"Marker file has all required columns: {marker_has_all}")
+    if not marker_has_all:
+        missing = [col for col in required_cols_marker if col not in marker_df.columns]
+        print(f"  Missing: {missing}")
+
+    # 9. Final summary
+    print("\n" + "=" * 80)
+    print("VERIFICATION SUMMARY")
+    print("=" * 80)
+
+    if 'state_change_valence' in marker_df.columns:
+        num_predictions_needed = marker_df['state_change_valence'].isna().sum()
+        print(f"✅ Test data loaded successfully")
+        print(f"✅ Total predictions needed: {num_predictions_needed}")
+
+        if 'is_forecasting_user' in marker_df.columns:
+            forecasting_value = marker_df[marker_df['state_change_valence'].isna()]['is_forecasting_user'].mode()[0] if num_predictions_needed > 0 else 'N/A'
+            print(f"✅ Prediction targets have is_forecasting_user = {forecasting_value}")
+            print(f"\n⚠️  IMPORTANT: Update prediction script to filter by:")
+            print(f"   is_forecasting_user == {forecasting_value}")
+            print(f"   OR state_change_valence.isna()")
+
+        print(f"\n✅ Data is ready for prediction generation")
+
+    print("=" * 80)
+
+    return test_df, marker_df
+
+if __name__ == '__main__':
+    test_df, marker_df = verify_test_data()
