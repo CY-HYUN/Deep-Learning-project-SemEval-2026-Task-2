@@ -1,14 +1,14 @@
-# Subtask 2a - Training Scripts
+# 01_training - Model Training Scripts
 
 ## 🎯 Overview
 
-This folder contains training scripts for Subtask 2a (Emotion Prediction).
+This folder contains all training scripts for emotion prediction models (Subtask 2a).
 
 ---
 
 ## 📁 Files
 
-### `train_ensemble_subtask2a.py`
+### `train_ensemble.py`
 
 **Purpose**: Train emotion prediction models with different random seeds for ensemble
 
@@ -65,7 +65,7 @@ RANDOM_SEED = 42  # or 123, 777
 pip install torch transformers pandas numpy scipy scikit-learn
 
 # Run training
-python train_ensemble_subtask2a.py
+python train_ensemble.py
 ```
 
 ---
@@ -154,10 +154,36 @@ Training progress includes:
 
 ---
 
-## 📖 References
+### `train_arousal_specialist.py`
 
-See: [docs/subtask2a/ENSEMBLE_GUIDE.md](../../../docs/subtask2a/ENSEMBLE_GUIDE.md) for complete guide
+**Purpose**: Train Arousal-specialized model with enhanced features
+
+**Key Differences from Ensemble Model**:
+- Arousal CCC weight: 90% (vs 70%)
+- 3 additional arousal-specific features (change, volatility, acceleration)
+- Weighted sampling for high-change samples
+- Temp feature dim: 20 (vs 17)
+
+**Expected Performance**:
+- Arousal CCC: 0.5832 (+6% improvement)
+- Overall CCC: 0.6512
+- Training time: ~24 minutes on A100 GPU
+
+**Usage**:
+```python
+# Google Colab or local training
+python train_arousal_specialist.py
+```
 
 ---
 
-**Last Updated**: 2025-11-14
+## 📖 References
+
+See project documentation:
+- [PROJECT_STATUS.md](../../docs/PROJECT_STATUS.md) - Current project status
+- [TRAINING_STRATEGY.md](../../docs/TRAINING_STRATEGY.md) - Detailed training strategy
+- [FINAL_REPORT.md](../../docs/FINAL_REPORT.md) - Complete technical report
+
+---
+
+**Last Updated**: 2026-01-12
