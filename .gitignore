@@ -30,9 +30,8 @@ logs/
 # Models folder (4.3 GB, tracked by Git LFS)
 # models/ folder is now tracked for team collaboration
 models/
-# Documentation (tracked for team collaboration)
-# docs/ folder is now tracked
-docs/
+# Documentation - selective tracking
+# Core documentation tracked, but exclude internal/sensitive files
 # Temporary model files in root (should be in models/)
 best_model.pt
 
@@ -58,3 +57,52 @@ FINAL_PROJECT_STRUCTURE.md
 FINAL_SUMMARY.md
 FOLDER_CLEANUP_PLAN.md
 PROJECT_CLEANUP_SUMMARY.md
+
+# ============================================================================
+# DOCS FOLDER - Internal/Sensitive Files (Not for Professor/Interviewers)
+# ============================================================================
+
+# Internal communication (professor emails, planning)
+docs/04_communication/
+docs/04_communication/*
+
+
+# Submission planning documents (internal process)
+docs/03_submission/PPT_CREATION_SUMMARY.md
+docs/03_submission/PPT_GENERATION_PACKAGE.md
+docs/03_submission/PPT_Generation_Prompt.md
+docs/03_submission/PPT_Prompt_Short.txt
+docs/03_submission/Image_Files_for_PPT.txt
+docs/03_submission/LIVE_DEMO_COMPLETE_PACKAGE.md
+docs/03_submission/Live_Demo_Script.md
+docs/03_submission/DEMO_QUICK_GUIDE.md
+docs/03_submission/GIT_SYNC_GUIDE.md
+docs/03_submission/SUBMISSION_VALIDATION.md
+
+# Internal planning files (Claude Code generated)
+docs/03_submission/final_submission/PLAN_*.md
+
+# Draft versions and supporting files (internal)
+docs/03_submission/final_submission/PPT/Final_Presentation.md
+docs/03_submission/final_submission/PPT/Final_Report.md
+docs/03_submission/final_submission/Report/SemEval_2026_Task2_Final_Academic_Report.md
+docs/03_submission/final_submission/Report/SemEval_2026_Task2_Final_Report_Concise.md
+docs/03_submission/final_submission/supporting_files/
+
+# Intermediate markdown versions (keep only final DOCX)
+docs/03_submission/final_submission/PPT, REPORT/SemEval_2026_Task2_Final_Report_V2.md
+
+# Core documentation internal drafts
+docs/01_core/_README.md
+
+# ============================================================================
+# WHAT TO KEEP PUBLIC (for Professor/Interviewers/GitHub)
+# ============================================================================
+# ✅ README.md (root and docs/)
+# ✅ docs/01_core/QUICKSTART.md
+# ✅ docs/01_core/PROJECT_STATUS.md
+# ✅ docs/01_core/TRAINING_STRATEGY.md
+# ✅ docs/03_submission/final_submission/README.md
+# ✅ docs/03_submission/final_submission/Report/FINAL_REPORT.md (comprehensive 40-page)
+# ✅ docs/03_submission/final_submission/PPT, REPORT/*.docx (final deliverables)
+# ✅ docs/03_submission/final_submission/PPT, REPORT/Presentation_Script_Subtask2a.md (speaking guide)
