@@ -1,4 +1,4 @@
-# SemEval 2026 Task 2: Emotional State Change Forecasting
+# SemEval 2026 Task 2a: Emotional State Change Forecasting
 
 > **Production-Grade Deep Learning Pipeline for Predicting Emotional Valence and Arousal**
 >
