@@ -2,7 +2,7 @@
 
 > **Production-Grade Deep Learning Pipeline for Predicting Emotional Valence and Arousal**
 >
-> International NLP Competition | November 2024 - January 2026
+> International NLP Competition | November 2025 - January 2026
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
@@ -147,10 +147,10 @@ This repository contains a **production-ready deep learning solution** for **Sem
 
 | Phase | Configuration | CCC | Improvement | Date |
 |-------|---------------|----:|------------:|------|
-| **Phase 1** | 3-model (seed42+123+777) | 0.6046 | Baseline | Nov 2024 |
-| **Phase 2** | 2-model (seed123+777) | 0.6305 | +4.3% | Dec 2024 |
-| **Phase 3** | seed777 + seed888 | 0.6687 | +10.6% | Dec 23, 2024 |
-| **Phase 4** | seed777 + arousal_specialist | **0.6833** | **+13.0%** | Dec 24, 2024 |
+| **Phase 1** | 3-model (seed42+123+777) | 0.6046 | Baseline | Nov 2025 |
+| **Phase 2** | 2-model (seed123+777) | 0.6305 | +4.3% | Dec 2025 |
+| **Phase 3** | seed777 + seed888 | 0.6687 | +10.6% | Dec 23, 2025 |
+| **Phase 4** | seed777 + arousal_specialist | **0.6833** | **+13.0%** | Dec 24, 2025 |
 
 ---
 
@@ -173,7 +173,7 @@ This repository includes complete academic deliverables for external review:
   - Slide 22: Training Setup & Infrastructure
   - Slide 23-26: Results & Performance Analysis
   - Slide 27-29: Applications, Future Work, Technical Contributions
-  - Slide 30: Project Timeline (Nov 2024 - Jan 2026)
+  - Slide 30: Project Timeline (Nov 2025 - Jan 2026)
   - Slide 31: Thank You & Q&A
 
 **Key Highlights**:
@@ -444,7 +444,7 @@ Deep-Learning-project-SemEval-2026-Task-2/
     │
     ├── 📂 02_reports/                     # Technical reports
     │   ├── 📄 FINAL_REPORT.md             # ⭐ 40-page technical report (1,000+ lines)
-    │   ├── 📄 TRAINING_LOG_20251224.md    # Training logs (Dec 24, 2024)
+    │   ├── 📄 TRAINING_LOG_20251224.md    # Training logs (Dec 24, 2025)
     │   └── 📄 NEXT_ACTIONS.md             # Next steps guide (Codabench submission)
     │
     ├── 📂 03_submission/                  # Submission materials
@@ -634,7 +634,7 @@ total_loss = loss_valence + loss_arousal
 
 | Phase | Configuration Change | CCC | Δ CCC | Key Insight |
 |-------|---------------------|----:|------:|-------------|
-| **Phase 1** | 3-model (seed42+123+777) | 0.6046 | - | Baseline (Nov 2024) |
+| **Phase 1** | 3-model (seed42+123+777) | 0.6046 | - | Baseline (Nov 2025) |
 | **Phase 2** | Remove weak seed42 | 0.6305 | **+4.3%** | Weak models hurt ensembles ⚠️ |
 | **Phase 3** | Add stronger seed888 | 0.6687 | **+10.6%** | Base model quality matters |
 | **Phase 4** | Add arousal_specialist | **0.6833** | **+13.0%** | Specialization > generalization ⭐ |
@@ -698,22 +698,22 @@ total_loss = loss_valence + loss_arousal
 
 ## 📈 Project Timeline & Milestones
 
-### Phase 1: Data Exploration & Baseline (Nov 19-30, 2024)
+### Phase 1: Data Exploration & Baseline (Nov 19-30, 2025)
 - ✅ Data analysis and preprocessing
 - ✅ Baseline 3-model ensemble (seed42+123+777)
 - ✅ Initial CCC: 0.6046
 
-### Phase 2: Model Optimization (Dec 1-18, 2024)
+### Phase 2: Model Optimization (Dec 1-18, 2025)
 - ✅ Removed weak seed42 model
 - ✅ 2-model ensemble (seed123+777): CCC 0.6305 (+4.3%)
 - ✅ Feature engineering refinement
 
-### Phase 3: Advanced Training (Dec 19-23, 2024)
+### Phase 3: Advanced Training (Dec 19-23, 2025)
 - ✅ Trained seed888 model (CCC 0.6211)
 - ✅ Ensemble optimization: seed777+888 (CCC 0.6687)
 - ✅ Comprehensive documentation
 
-### Phase 4: Arousal Specialization (Dec 24, 2024)
+### Phase 4: Arousal Specialization (Dec 24, 2025)
 - ✅ Designed arousal-specialized model
 - ✅ Trained arousal_specialist (Arousal CCC: 0.5832, +6%)
 - ✅ Final ensemble: seed777+arousal (CCC 0.6833, +13%)
@@ -759,16 +759,16 @@ total_loss = loss_valence + loss_arousal
 #### 📂 Core Documentation (docs/01_core/)
 | Document | Lines | Purpose | Last Updated |
 |----------|------:|---------|--------------|
-| **[README.md](docs/01_core/README.md)** | 250+ | Navigation guide, reading order | 2024-12-27 |
+| **[README.md](docs/01_core/README.md)** | 250+ | Navigation guide, reading order | 2025-12-27 |
 | **[QUICKSTART.md](docs/01_core/QUICKSTART.md)** | 272 | 6-step quick start guide | 2026-01-12 |
 | **[PROJECT_STATUS.md](docs/01_core/PROJECT_STATUS.md)** | 493 | Current status, timeline, file locations | 2026-01-07 |
-| **[TRAINING_STRATEGY.md](docs/01_core/TRAINING_STRATEGY.md)** | 400+ | Training methodology, hyperparameters | 2024-12-24 |
+| **[TRAINING_STRATEGY.md](docs/01_core/TRAINING_STRATEGY.md)** | 400+ | Training methodology, hyperparameters | 2025-12-24 |
 
 #### 📂 Technical Reports (docs/02_reports/)
 | Document | Lines | Purpose | Last Updated |
 |----------|------:|---------|--------------|
 | **[FINAL_REPORT.md](docs/02_reports/FINAL_REPORT.md)** | 1,000+ | ⭐ Comprehensive 40-page technical report | 2026-01-07 |
-| **[TRAINING_LOG_20251224.md](docs/02_reports/TRAINING_LOG_20251224.md)** | 400+ | Training logs (Dec 24, 2024) | 2024-12-24 |
+| **[TRAINING_LOG_20251224.md](docs/02_reports/TRAINING_LOG_20251224.md)** | 400+ | Training logs (Dec 24, 2025) | 2025-12-24 |
 | **[NEXT_ACTIONS.md](docs/02_reports/NEXT_ACTIONS.md)** | 414 | Next steps (Codabench submission) | 2026-01-07 |
 
 #### 📂 Final Submission Materials (docs/03_submission/)
@@ -859,8 +859,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 👤 Author & Contact
 
-**Hyun Chang-Yong (현창용)**
-- **GitHub**: [@ThickHedgehog](https://github.com/ThickHedgehog)
+**Changyong Hyun**
+- **GitHub**: [@ThickHedgehog](https://github.com/CY-HYUN)
 - **Institution**: Télécom SudParis (MSc in Data Science & AI)
 - **Target Role**: LLM Engineer / ML Engineer / NLP Research Engineer
 - **Seeking**: Internship (March-September 2025, 20-26 weeks)
@@ -967,7 +967,7 @@ This project serves as a **comprehensive case study** in production-grade deep l
 - **Metric Optimization**: CCC (Concordance Correlation Coefficient) vs standard MSE/MAE
 - **Leaderboard Strategy**: Conservative-expected-optimistic predictions (0.6733-0.6933)
 - **Submission Preparation**: Format validation, integrity checks, submission.zip packaging
-- **Time Management**: 15 months (Nov 2024 - Jan 2026) with clear phase milestones
+- **Time Management**: 15 months (Nov 2025 - Jan 2026) with clear phase milestones
 
 ### 7. **Production Engineering Practices**
 - **Modular Code**: 721 lines organized into training/prediction/evaluation phases
@@ -1091,10 +1091,8 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 - [ ] Open-source final competition results and leaderboard position
 - [ ] Publish model checkpoints on Hugging Face Model Hub
 - [ ] Create interactive demo with Gradio/Streamlit
-- [ ] Write blog post explaining technical innovations
 
 ### Long-term
-- [ ] Extend to Subtask 2b (multi-user forecasting)
 - [ ] Implement Transformer-XL for longer context (256+ tokens)
 - [ ] Add cross-attention between Valence and Arousal heads
 - [ ] Multi-task learning with Subtask 1 (emotion recognition)
