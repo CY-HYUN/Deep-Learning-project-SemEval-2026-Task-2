@@ -20,10 +20,12 @@ This repository contains a **production-ready deep learning solution** for **Sem
 **Competition**: [Codabench - SemEval 2026 Task 2](https://www.codabench.org/competitions/9963/)
 
 **Project Status**: ✅ **COMPLETED** (January 2026)
-- Final models trained and optimized (CCC 0.6833)
-- Test predictions generated for 46 users (1,266 total predictions)
-- Academic deliverables submitted: 2-page report, 21-slide presentation, presentation script
-- All documentation finalized (40-page technical report + 8 specialized guides)
+- ✅ Final models trained and optimized (CCC 0.6833)
+- ✅ Test predictions generated for 46 users (1,266 total predictions)
+- ✅ Academic deliverables submitted: Joint presentation (31 slides), Final report (DOCX)
+- ✅ Live demo materials prepared: Interactive notebook, 8 visualizations, 11-minute presentation script
+- ✅ All documentation finalized (40-page technical report + 8 specialized guides + demo package)
+- ✅ Repository organized for public review (professors, interviewers, external reviewers)
 
 ---
 
@@ -51,7 +53,6 @@ This repository contains a **production-ready deep learning solution** for **Sem
 > **Academic Deliverables**: ✅ Submitted (January 2026)
 > - 📄 **Final Report** (2 pages, 2-column format): [SemEval_2026_Task2_Final_Report_Separated.docx](docs/03_submission/final_submission/PPT,%20REPORT/SemEval_2026_Task2_Final_Report_Separated.docx)
 > - 📊 **Presentation** (21 slides): [SemEval_2026_Subtask2a_Presentation.pptx](docs/03_submission/final_submission/PPT,%20REPORT/SemEval_2026_Subtask2a_Presentation.pptx)
-> - 🎤 **Presentation Script** (12-15 min): [Presentation_Script_Subtask2a.md](docs/03_submission/final_submission/PPT,%20REPORT/Presentation_Script_Subtask2a.md)
 
 ---
 
@@ -153,6 +154,84 @@ This repository contains a **production-ready deep learning solution** for **Sem
 
 ---
 
+## 📦 Final Submission Materials
+
+This repository includes complete academic deliverables for external review:
+
+### 📊 Joint Presentation (31 Slides)
+**File**: [docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval 2026 Task2_ Emotional State Change Forecasting Joint Presentation.pptx](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval%202026%20Task2_%20Emotional%20State%20Change%20Forecasting%20Joint%20Presentation.pptx) (3.3 MB)
+
+**Content Overview**:
+- **Slides 1-15**: Subtask 1 (Emotional State Recognition) - Team member contribution
+- **Slides 16-31**: Subtask 2a (Emotional State Change Forecasting) - My work ⭐
+  - Slide 16: Subtask 2a Introduction
+  - Slide 17: Dataset Analysis & 38% Volatility Gap Discovery
+  - Slide 18: Hybrid Model Architecture (RoBERTa + BiLSTM + Attention)
+  - Slide 19: 47-Dimensional Feature Engineering
+  - Slide 20: **Core Innovation - Arousal-Specialist Model** (90% CCC loss)
+  - Slide 21: 2-Model Ensemble Strategy (Quality > Quantity)
+  - Slide 22: Training Setup & Infrastructure
+  - Slide 23-26: Results & Performance Analysis
+  - Slide 27-29: Applications, Future Work, Technical Contributions
+  - Slide 30: Project Timeline (Nov 2024 - Jan 2026)
+  - Slide 31: Thank You & Q&A
+
+**Key Highlights**:
+- Professional academic design with consistent styling
+- High-quality visualizations (8 demo PNG files embedded)
+- Clear methodology and results presentation
+- Suitable for conference presentations, thesis defense, interviews
+
+### 📄 Comprehensive Technical Report (DOCX)
+**File**: [docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval_2026_Task2_Report.docx](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval_2026_Task2_Report.docx) (204 KB)
+
+**Content Overview**:
+- **Abstract**: Problem definition, methodology, key results (CCC 0.6833)
+- **Introduction**: SemEval 2026 Task 2 background, competition structure
+- **Related Work**: Emotion recognition, temporal modeling, ensemble methods
+- **Methodology**:
+  - Hybrid architecture (RoBERTa + BiLSTM + Attention)
+  - 47-dimensional feature engineering
+  - Arousal-Specialist innovation (90% CCC loss weighting)
+  - 2-model ensemble strategy
+- **Experiments**: Training setup, hyperparameters, ablation studies
+- **Results**: Performance comparison, ensemble optimization
+- **Discussion**: Key insights, limitations, future work
+- **Conclusion**: +10.4% above target, arousal improvement +6%
+- **References**: 15+ academic papers and technical resources
+
+**Format**:
+- Professional academic style
+- Detailed technical exposition
+- Comprehensive methodology description
+- Results tables and performance analysis
+- Suitable for submission to academic journals, technical reports
+
+### 🎤 Live Demo Script (10-12 Minutes)
+**File**: [docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md) (28 KB, bilingual EN/KR)
+
+**Purpose**: Structured presentation script for live demonstrations
+- **Part 1**: PowerPoint walkthrough (Slides 16-31, 8 minutes)
+- **Part 2**: Pre-executed demo walkthrough (3:20 minutes)
+- **Part 3**: Conclusion and Q&A (40 seconds)
+- **Total Duration**: 11:40 minutes (within 10-15 min target)
+
+**Features**:
+- Timing markers every 30-60 seconds (⏱️)
+- Visual cue annotations: [Point to X], [Show Y]
+- Critical section markers (⭐)
+- Bilingual support (English + Korean)
+- Q&A preparation (8 anticipated questions)
+- Speaking tips and time management strategies
+
+**Use Cases**:
+- Academic presentations (class, conference, symposium)
+- Job interviews (LLM Engineer, ML Engineer demonstrations)
+- Portfolio video recordings
+- Thesis defense preparation
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -207,7 +286,36 @@ python scripts/03_evaluation/validate_predictions.py
 
 **Output**: `results/subtask2a/pred_subtask2a.csv` (46 users, 1,266 predictions)
 
-### 4. Google Colab Production Pipeline
+### 4. Live Demo (Recommended for Presentations)
+
+```bash
+# Open interactive demo notebook
+cd "D:\Study\Github\Deep-Learning-project-SemEval-2026-Task-2"
+jupyter notebook scripts/demo/demo_live_presentation.ipynb
+
+# Or view pre-executed results (no dependencies required)
+# Simply open the notebook in any Jupyter viewer or GitHub
+```
+
+**Demo Features**:
+- **User 137 Example**: 42 emotional diary entries (3 years)
+- **Pre-executed Results**: No need to run cells (already executed)
+- **Visualizations**: 8 high-quality PNG files embedded
+- **Execution Time**: <2 seconds on T4 GPU (if re-running)
+
+**Demo Script**: [docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md) (10-12 minutes)
+
+### 5. Generate Visualizations (Optional)
+
+```bash
+# Regenerate demo visualizations
+cd scripts/demo
+python extract_visualizations.py
+
+# Output: 3 PNG files in demo_visualizations/ folder
+```
+
+### 6. Google Colab Production Pipeline (For Prediction Generation)
 
 For reproducible prediction generation on Google Colab:
 
@@ -220,14 +328,92 @@ For reproducible prediction generation on Google Colab:
 
 ---
 
+## 🎬 Live Demo Materials
+
+This project includes a complete **live demo package** for presentations and interviews:
+
+### 📊 Interactive Demo Notebook
+**[scripts/demo/demo_live_presentation.ipynb](scripts/demo/demo_live_presentation.ipynb)** (521 KB, pre-executed)
+- **User 137 Example**: 42 emotional diary entries spanning 3 years (Jan 2021 - Dec 2023)
+- **10 Interactive Steps**: From data loading to prediction visualization
+- **Real-Time Predictions**: <2 seconds on T4 GPU (Google Colab)
+- **Key Features**:
+  - Historical data visualization (Valence/Arousal timeline)
+  - Feature engineering demonstration (47 features)
+  - 2-model ensemble prediction (seed777 + arousal_specialist)
+  - Russell's Circumplex emotional trajectory
+  - Model contribution analysis
+
+### 🎨 Visualization Gallery (8 High-Quality PNG Files)
+**[demo_visualizations/](demo_visualizations/)** (~2 MB total, 2000×1000+ px resolution)
+
+**Demo Notebook Visualizations** (3 files, 439 KB):
+1. **User 137 Emotional Timeline** (134 KB) - 3-year emotional journey with upward Valence trend
+2. **Prediction Results (Timeline + Circumplex)** (238 KB) - Combined forecast visualization ⭐
+3. **Model Contribution Analysis** (68 KB) - 2-model comparison (seed777 vs arousal_specialist)
+
+**Additional Analysis Visualizations** (5 files, 1.5 MB):
+4. **Russell's Circumplex (Standalone)** (418 KB) - High-res emotional quadrant distribution
+5. **Scatter Density Analysis** (334 KB) - Valence/Arousal prediction distribution
+6. **Extended Model Comparison** (233 KB) - Multi-model performance analysis
+7. **Feature Importance** (269 KB) - 47-feature contribution analysis
+8. **Training Progress** (230 KB) - Loss curves and CCC improvement over epochs
+
+**Regeneration Script**: [scripts/demo/extract_visualizations.py](scripts/demo/extract_visualizations.py)
+
+### 🎤 Presentation Script (10-12 Minutes)
+**[docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md)** (28 KB, bilingual EN/KR)
+- **Part 1**: PowerPoint walkthrough (Slides 16-31, 8 minutes)
+  - Subtask 2a overview, model architecture, feature engineering
+  - **Core innovation**: Arousal-Specialist Model (90% CCC loss weighting)
+  - Ensemble strategy, training setup, results overview
+- **Part 2**: Pre-executed demo walkthrough (3:20 minutes)
+  - User 137 emotional timeline analysis
+  - Feature engineering demonstration
+  - 2-model ensemble predictions
+  - Russell's Circumplex visualization
+- **Part 3**: Conclusion and Q&A preparation
+- **Timing markers**: Every 30-60 seconds for precise delivery
+- **Visual cues**: "[Point to X]", "[Show Y]" annotations
+- **Q&A prep**: 8 anticipated questions with detailed answers
+
+**Use Cases**:
+- 🎓 Academic presentations (class, conference, defense)
+- 💼 Job interviews (LLM Engineer, ML Engineer roles)
+- 🏆 Competition presentations (SemEval 2026 symposium)
+- 📹 Portfolio video recordings
+
+**Key Metrics Highlighted**:
+- Overall CCC: 0.6833 (+10.4% above target 0.62)
+- Arousal improvement: +6% (0.5516 → 0.5832)
+- Prediction time: <2 seconds on T4 GPU
+- User 137: 42 entries, 3 years (2021-2023)
+
+---
+
 ## 📂 Project Structure
 
 ```
 Deep-Learning-project-SemEval-2026-Task-2/
 │
-├── 📄 README.md                           # Project overview (this file)
+├── 📄 README.md                           # ⭐ Project overview (this file)
+├── 📄 PROJECT_STRUCTURE.md                # 📋 Complete repository guide for external reviewers
+├── 📄 GIT_SYNC_CHECKLIST.md               # ✅ Git synchronization guide
+├── 📄 SYNC_SUMMARY.md                     # 📊 Recent changes summary
 ├── 📄 requirements.txt                    # Python dependencies
+├── 📄 .gitignore                          # Git exclusion rules (internal files hidden)
 ├── 📄 LICENSE                             # MIT License
+│
+├── 📂 demo_visualizations/                # 🎨 Demo visualizations (8 PNG files, ~2 MB)
+│   ├── README.md                          # Visualization documentation
+│   ├── 01_user137_emotional_timeline.png  # User 137 3-year journey (134 KB)
+│   ├── 02_prediction_results_combined.png # Timeline + Circumplex (238 KB) ⭐
+│   ├── 03_model_contribution_analysis.png # 2-model comparison (68 KB)
+│   ├── 01_russells_circumplex.png         # Standalone Circumplex (418 KB)
+│   ├── 02_scatter_density.png             # Data distribution (334 KB)
+│   ├── 03_model_comparison.png            # Extended comparison (233 KB)
+│   ├── 04_feature_importance.png          # 47-feature analysis (269 KB)
+│   └── 05_training_progress.png           # Training curves (230 KB)
 │
 ├── 📂 data/                               # Dataset folder
 │   ├── raw/
@@ -266,6 +452,11 @@ Deep-Learning-project-SemEval-2026-Task-2/
 │   │   ├── verify_test_data.py           # Check test data integrity
 │   │   └── README.md                     # Evaluation guide
 │   │
+│   ├── demo/                              # 🎬 Live Demo Materials
+│   │   ├── demo_live_presentation.ipynb  # ⭐ Interactive demo notebook (521 KB, pre-executed)
+│   │   ├── extract_visualizations.py     # Visualization generator (11 KB)
+│   │   └── README.md                     # Demo guide
+│   │
 │   └── archive/                           # Legacy scripts (not in use)
 │       ├── test_2model_ensemble.py
 │       ├── analyze_ensemble_weights_subtask2a.py
@@ -294,13 +485,13 @@ Deep-Learning-project-SemEval-2026-Task-2/
     │   └── 📄 NEXT_ACTIONS.md             # Next steps guide (Codabench submission)
     │
     ├── 📂 03_submission/                  # Submission materials
+    │   ├── 📄 Live_Demo_Script_EN_Full.md # ⭐ 10-12 min presentation script (28 KB, bilingual)
     │   └── final_submission/              # Final deliverables (January 2026) ⭐
     │       ├── 📄 README.md               # Submission package overview
-    │       └── PPT, REPORT/               # Academic deliverables
-    │           ├── 📄 SemEval_2026_Task2_Final_Report_Separated.docx (2-page, 2-column)
-    │           ├── 📊 SemEval_2026_Subtask2a_Presentation.pptx (21 slides)
-    │           ├── 🎤 Presentation_Script_Subtask2a.md (12-15 min script)
-    │           └── 📄 SemEval_2026_Task2_Final_Report_V2.md (markdown version)
+    │       └── Final_PPT_and_REPORT/      # Academic deliverables
+    │           └── Final_Submission_Docs/ # 📦 Final package folder
+    │               ├── 📊 SemEval 2026 Task2_ Emotional State Change Forecasting Joint Presentation.pptx (3.3 MB, 31 slides)
+    │               └── 📄 SemEval_2026_Task2_Report.docx (204 KB, comprehensive report)
     │
     ├── 📂 05_archive/                     # Historical documentation
     │   ├── 01_PROJECT_OVERVIEW.md         # SemEval 2026 competition overview
@@ -584,7 +775,17 @@ total_loss = loss_valence + loss_arousal
 - ✅ Configured .gitignore for public GitHub sharing
 - ✅ Submitted academic materials to professor
 
-### Phase 8: Competition Submission (Jan 2026) ⏳
+### Phase 8: Live Demo Package (Jan 28, 2026)
+- ✅ Created interactive demo notebook (User 137 example, pre-executed)
+- ✅ Generated 8 high-quality visualizations (demo_visualizations/)
+- ✅ Wrote comprehensive 10-12 min presentation script (bilingual EN/KR)
+- ✅ Organized final submission docs (Final_Submission_Docs/)
+- ✅ Updated .gitignore (exclude internal/sensitive files)
+- ✅ Created repository documentation (PROJECT_STRUCTURE.md, GIT_SYNC_CHECKLIST.md)
+- ✅ Fixed security issues (removed Hugging Face token from notebook)
+- ✅ Pushed all materials to GitHub (public-ready repository)
+
+### Phase 9: Competition Submission (Jan 2026) ⏳
 - ⏳ Codabench submission (deadline: January 10, 2026)
 - ⏳ Final test results (expected: CCC 0.6733-0.6933)
 
@@ -609,14 +810,13 @@ total_loss = loss_valence + loss_arousal
 | **[TRAINING_LOG_20251224.md](docs/02_reports/TRAINING_LOG_20251224.md)** | 400+ | Training logs (Dec 24, 2024) | 2024-12-24 |
 | **[NEXT_ACTIONS.md](docs/02_reports/NEXT_ACTIONS.md)** | 414 | Next steps (Codabench submission) | 2026-01-07 |
 
-#### 📂 Final Submission Materials (docs/03_submission/final_submission/)
-| Document | Format | Purpose | Last Updated |
-|----------|--------|---------|--------------|
-| **[README.md](docs/03_submission/final_submission/README.md)** | Markdown | Submission package overview | 2026-01-21 |
-| **Final Report** | DOCX | ⭐ 2-page academic report (2-column) | 2026-01-21 |
-| **Presentation** | PPTX | 21-slide presentation (Subtask 2a) | 2026-01-21 |
-| **Presentation Script** | Markdown | 12-15 minute speaking guide (EN) | 2026-01-21 |
-| **Report (Markdown)** | Markdown | Markdown version of final report | 2026-01-21 |
+#### 📂 Final Submission Materials (docs/03_submission/)
+| Document | Format | Size | Purpose | Last Updated |
+|----------|--------|------|---------|--------------|
+| **[README.md](docs/03_submission/final_submission/README.md)** | Markdown | 15 KB | Submission package overview | 2026-01-21 |
+| **[Live Demo Script](docs/03_submission/Live_Demo_Script_EN_Full.md)** ⭐ | Markdown | 28 KB | 10-12 min presentation guide (bilingual) | 2026-01-28 |
+| **[Joint Presentation](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval%202026%20Task2_%20Emotional%20State%20Change%20Forecasting%20Joint%20Presentation.pptx)** | PPTX | 3.3 MB | 31-slide presentation (Slides 16-31: Subtask 2a) | 2026-01-28 |
+| **[Technical Report](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval_2026_Task2_Report.docx)** | DOCX | 204 KB | Comprehensive academic report | 2026-01-28 |
 
 #### 📂 Script-Specific Guides
 - **[scripts/01_training/README.md](scripts/01_training/README.md)**: Training scripts usage (architecture, hyperparameters)
@@ -942,9 +1142,11 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 
 ---
 
-**Last Updated**: January 21, 2026
+**Last Updated**: January 28, 2026
 **Competition Status**: ✅ Submission Ready | **Academic Deliverables**: ✅ Submitted
-**Documentation Status**: ✅ Complete (40-page report + 21-slide presentation + 8 guides)
+**Demo Materials**: ✅ Complete (Interactive notebook + 8 visualizations + presentation script)
+**Documentation Status**: ✅ Complete (40-page report + 31-slide presentation + 8 guides + live demo package)
+**Repository Status**: ✅ Public-ready (cleaned, organized, security-verified)
 
 ---
 
@@ -958,10 +1160,28 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 
 **📊 Test Predictions: 46 users × 1,266 total predictions**
 
+**🎬 Live Demo: Interactive notebook + 8 visualizations + 11-minute presentation**
+
+**📦 Complete Package: 31-slide presentation + technical report + demo materials**
+
+---
+
+### 📂 Quick Access Links
+
+- 📖 **[Project Overview](PROJECT_STRUCTURE.md)** - Repository guide for external reviewers
+- 🚀 **[Quick Start Guide](docs/01_core/QUICKSTART.md)** - 6-step setup & usage
+- 📊 **[Technical Report (40 pages)](docs/02_reports/FINAL_REPORT.md)** - Comprehensive methodology
+- 🎤 **[Live Demo Script](docs/03_submission/Live_Demo_Script_EN_Full.md)** - 10-12 minute presentation
+- 🎬 **[Demo Notebook](scripts/demo/demo_live_presentation.ipynb)** - Interactive User 137 example
+- 🎨 **[Visualizations](demo_visualizations/)** - 8 high-quality PNG files
+- 📊 **[Final Presentation](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/)** - 31 slides + DOCX report
+
 ---
 
 *Built with ❤️ using PyTorch, Transformers, and Google Colab*
 
-**⭐ Star this repository if you find it useful!**
+**⭐ Star this repository if you find it useful for your research or learning!**
+
+**🔗 For questions or collaboration**: Contact via [GitHub Issues](https://github.com/CY-HYUN/Deep-Learning-project-SemEval-2026-Task-2/issues)
 
 </div>
