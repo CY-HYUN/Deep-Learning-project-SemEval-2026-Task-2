@@ -860,10 +860,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 👤 Author & Contact
 
 **Changyong Hyun**
-- **GitHub**: [@ThickHedgehog](https://github.com/CY-HYUN)
+- **GitHub**: [@CY-HYUN](https://github.com/CY-HYUN)
 - **Institution**: Télécom SudParis (MSc in Data Science & AI)
 - **Target Role**: LLM Engineer / ML Engineer / NLP Research Engineer
-- **Seeking**: Internship (March-September 2025, 20-26 weeks)
 
 **Portfolio Highlights** (8 Major Projects):
 1. **SemEval 2026** (Deep Learning/NLP): CCC 0.6833, Top 10 competitive
