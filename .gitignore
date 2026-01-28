@@ -1,4 +1,6 @@
-# Python
+# ============================================================================
+# Python Environment
+# ============================================================================
 __pycache__/
 *.py[cod]
 *.so
@@ -6,68 +8,94 @@ __pycache__/
 env/
 venv/
 venv_*/
-.idea/
-.vscode/
+.conda/
+envs/
 .ipynb_checkpoints/
 .python-version
 
-# Conda environments
-.conda/
-envs/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# Env
+# ============================================================================
+# Environment Variables & Secrets
+# ============================================================================
 .env
 .envrc
+*.key
+*.pem
+config/secrets.yaml
 
-# Data / models / outputs
-# data/raw/ and data/processed/ tracked by Git LFS (essential for training)
+# ============================================================================
+# Data & Models (Large Files - Git LFS or Excluded)
+# ============================================================================
+
+# Raw data (excluded - too large, available from competition organizers)
 data/raw/
 data/test/
+
+# Models folder (4.3 GB - excluded, models can be reproduced via training scripts)
+models/
+
+# Outputs & predictions (generated files)
 outputs/
 predictions/
 logs/
 
-# Models folder (4.3 GB, tracked by Git LFS)
-# models/ folder is now tracked for team collaboration
-models/
-# Documentation - selective tracking
-# Core documentation tracked, but exclude internal/sensitive files
 # Temporary model files in root (should be in models/)
 best_model.pt
+*.pt
+*.pth
+*.ckpt
 
-# Claude settings (personal)
-.claude/
-
-# Experiment trackers / checkpoints
+# ============================================================================
+# Experiment Tracking & Checkpoints
+# ============================================================================
 wandb/
 mlruns/
 checkpoints/
+runs/
 
-# System files
+# ============================================================================
+# System Files
+# ============================================================================
 .DS_Store
 Thumbs.db
 __MACOSX/
-pytorch_wheels/
 nul
 *.lnk
+desktop.ini
 
-# Personal files
+# ============================================================================
+# Personal/Internal Files (NOT for Professor/Reviewers/GitHub)
+# ============================================================================
+
+# Claude Code personal settings
+.claude/
+
+# Personal planning documents (Claude Code generated, internal use only)
 RECOVERY_REPORT.md
 FINAL_PROJECT_STRUCTURE.md
 FINAL_SUMMARY.md
 FOLDER_CLEANUP_PLAN.md
 PROJECT_CLEANUP_SUMMARY.md
+READY_TO_SYNC.txt
 
 # ============================================================================
-# DOCS FOLDER - Internal/Sensitive Files (Not for Professor/Interviewers)
+# DOCS FOLDER - Internal/Sensitive Files
 # ============================================================================
 
-# Internal communication (professor emails, planning)
+# 04_communication: Internal emails, professor correspondence
 docs/04_communication/
-docs/04_communication/*
 
+# 05_archive: Old/deprecated files
+docs/05_archive/
 
-# Submission planning documents (internal process)
+# 03_submission: Internal process documentation (NOT final deliverables)
+# Keep only final presentation/report, exclude internal planning
 docs/03_submission/PPT_CREATION_SUMMARY.md
 docs/03_submission/PPT_GENERATION_PACKAGE.md
 docs/03_submission/PPT_Generation_Prompt.md
@@ -78,31 +106,72 @@ docs/03_submission/Live_Demo_Script.md
 docs/03_submission/DEMO_QUICK_GUIDE.md
 docs/03_submission/GIT_SYNC_GUIDE.md
 docs/03_submission/SUBMISSION_VALIDATION.md
+docs/03_submission/_README.md
 
-# Internal planning files (Claude Code generated)
+# Exclude intermediate demo scripts (keep only Live_Demo_Script_EN_Full.md)
+docs/03_submission/Live_Demo_Script_Subtask2a_PRE_EXECUTED.md
+
+# Exclude internal planning files
 docs/03_submission/final_submission/PLAN_*.md
-
-# Draft versions and supporting files (internal)
-docs/03_submission/final_submission/PPT/Final_Presentation.md
-docs/03_submission/final_submission/PPT/Final_Report.md
-docs/03_submission/final_submission/Report/SemEval_2026_Task2_Final_Academic_Report.md
-docs/03_submission/final_submission/Report/SemEval_2026_Task2_Final_Report_Concise.md
 docs/03_submission/final_submission/supporting_files/
 
-# Intermediate markdown versions (keep only final DOCX)
-docs/03_submission/final_submission/PPT, REPORT/SemEval_2026_Task2_Final_Report_V2.md
+# Exclude draft/intermediate versions (keep only final DOCX/PPTX)
+docs/03_submission/final_submission/PPT/
+docs/03_submission/final_submission/Report/
+docs/03_submission/final_submission/Final_PPT_and_REPORT/DEMO_PREPARATION_GUIDE.md
+docs/03_submission/final_submission/Final_PPT_and_REPORT/Live_Demo_Script_EN_Full.md
+docs/03_submission/final_submission/Final_PPT_and_REPORT/Presentation_Script_Subtask2a.md
+docs/03_submission/final_submission/Final_PPT_and_REPORT/SemEval_2026_Subtask2a_Presentation.pptx
+docs/03_submission/final_submission/Final_PPT_and_REPORT/SemEval_2026_Task2_Final_Report(long).docx
+docs/03_submission/final_submission/Final_PPT_and_REPORT/SemEval_2026_Task2_Final_Report_V2.md
 
-# Core documentation internal drafts
+# Exclude core documentation drafts
 docs/01_core/_README.md
 
 # ============================================================================
-# WHAT TO KEEP PUBLIC (for Professor/Interviewers/GitHub)
+# SCRIPTS FOLDER - Internal/Test Files
 # ============================================================================
-# ✅ README.md (root and docs/)
+
+# Demo folder: Keep only essential files, exclude utility scripts
+scripts/demo/compare_images.py
+scripts/demo/demo_visualization.py
+scripts/demo/live_demo_simplified.py
+scripts/demo/create_2column_separated_report.py
+
+# Archive folder (old/deprecated scripts)
+scripts/archive/
+
+# ============================================================================
+# WHAT TO KEEP PUBLIC (✅ Tracked by Git)
+# ============================================================================
+# Repository Structure:
+# ✅ README.md (root)
+# ✅ requirements.txt
+# ✅ .gitignore, .gitattributes
+#
+# Code:
+# ✅ scripts/01_training/ (all training scripts)
+# ✅ scripts/02_prediction/ (all prediction scripts)
+# ✅ scripts/03_evaluation/ (all evaluation scripts)
+# ✅ scripts/demo/demo_live_presentation.ipynb (live demo notebook)
+# ✅ scripts/demo/extract_visualizations.py (visualization generator)
+#
+# Documentation (Public):
 # ✅ docs/01_core/QUICKSTART.md
 # ✅ docs/01_core/PROJECT_STATUS.md
 # ✅ docs/01_core/TRAINING_STRATEGY.md
+# ✅ docs/02_development/ (development notes)
+# ✅ docs/03_submission/Live_Demo_Script_EN_Full.md (final demo script)
 # ✅ docs/03_submission/final_submission/README.md
-# ✅ docs/03_submission/final_submission/Report/FINAL_REPORT.md (comprehensive 40-page)
-# ✅ docs/03_submission/final_submission/PPT, REPORT/*.docx (final deliverables)
-# ✅ docs/03_submission/final_submission/PPT, REPORT/Presentation_Script_Subtask2a.md (speaking guide)
+# ✅ docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/ (FINAL PPTX + DOCX)
+#
+# Visualizations:
+# ✅ demo_visualizations/ (all 8 PNG files + README.md)
+#
+# Data (Metadata only):
+# ✅ data/processed/ (if small, otherwise exclude)
+# ✅ data/trial/ (small sample data for testing)
+#
+# Results:
+# ✅ results/subtask2a/ (final prediction results, excluding archive/)
+# ============================================================================
