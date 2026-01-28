@@ -91,8 +91,7 @@ READY_TO_SYNC.txt
 # 04_communication: Internal emails, professor correspondence
 docs/04_communication/
 
-# 05_archive: Old/deprecated files
-docs/05_archive/
+# 05_archive: Old/deprecated files  
 
 # 03_submission: Internal process documentation (NOT final deliverables)
 # Keep only final presentation/report, exclude internal planning
@@ -107,6 +106,7 @@ docs/03_submission/DEMO_QUICK_GUIDE.md
 docs/03_submission/GIT_SYNC_GUIDE.md
 docs/03_submission/SUBMISSION_VALIDATION.md
 docs/03_submission/_README.md
+Live_Demo_Script_EN_Full.md
 
 # Exclude intermediate demo scripts (keep only Live_Demo_Script_EN_Full.md)
 docs/03_submission/Live_Demo_Script_Subtask2a_PRE_EXECUTED.md
