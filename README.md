@@ -23,7 +23,7 @@ This repository contains a **production-ready deep learning solution** for **Sem
 - ✅ Final models trained and optimized (CCC 0.6833)
 - ✅ Test predictions generated for 46 users (1,266 total predictions)
 - ✅ Academic deliverables submitted: Joint presentation (31 slides), Final report (DOCX)
-- ✅ Live demo materials prepared: Interactive notebook, 8 visualizations, 11-minute presentation script
+- ✅ Live demo materials prepared: Interactive notebook, 8 visualizations
 - ✅ All documentation finalized (40-page technical report + 8 specialized guides + demo package)
 - ✅ Repository organized for public review (professors, interviewers, external reviewers)
 
@@ -207,28 +207,6 @@ This repository includes complete academic deliverables for external review:
 - Results tables and performance analysis
 - Suitable for submission to academic journals, technical reports
 
-### 🎤 Live Demo Script (10-12 Minutes)
-**File**: [docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md) (28 KB, bilingual EN/KR)
-
-**Purpose**: Structured presentation script for live demonstrations
-- **Part 1**: PowerPoint walkthrough (Slides 16-31, 8 minutes)
-- **Part 2**: Pre-executed demo walkthrough (3:20 minutes)
-- **Part 3**: Conclusion and Q&A (40 seconds)
-- **Total Duration**: 11:40 minutes (within 10-15 min target)
-
-**Features**:
-- Timing markers every 30-60 seconds (⏱️)
-- Visual cue annotations: [Point to X], [Show Y]
-- Critical section markers (⭐)
-- Bilingual support (English + Korean)
-- Q&A preparation (8 anticipated questions)
-- Speaking tips and time management strategies
-
-**Use Cases**:
-- Academic presentations (class, conference, symposium)
-- Job interviews (LLM Engineer, ML Engineer demonstrations)
-- Portfolio video recordings
-- Thesis defense preparation
 
 ---
 
@@ -303,7 +281,6 @@ jupyter notebook scripts/demo/demo_live_presentation.ipynb
 - **Visualizations**: 8 high-quality PNG files embedded
 - **Execution Time**: <2 seconds on T4 GPU (if re-running)
 
-**Demo Script**: [docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md) (10-12 minutes)
 
 ### 5. Generate Visualizations (Optional)
 
@@ -361,33 +338,19 @@ This project includes a complete **live demo package** for presentations and int
 
 **Regeneration Script**: [scripts/demo/extract_visualizations.py](scripts/demo/extract_visualizations.py)
 
-### 🎤 Presentation Script (10-12 Minutes)
-**[docs/03_submission/Live_Demo_Script_EN_Full.md](docs/03_submission/Live_Demo_Script_EN_Full.md)** (28 KB, bilingual EN/KR)
-- **Part 1**: PowerPoint walkthrough (Slides 16-31, 8 minutes)
-  - Subtask 2a overview, model architecture, feature engineering
-  - **Core innovation**: Arousal-Specialist Model (90% CCC loss weighting)
-  - Ensemble strategy, training setup, results overview
-- **Part 2**: Pre-executed demo walkthrough (3:20 minutes)
-  - User 137 emotional timeline analysis
-  - Feature engineering demonstration
-  - 2-model ensemble predictions
-  - Russell's Circumplex visualization
-- **Part 3**: Conclusion and Q&A preparation
-- **Timing markers**: Every 30-60 seconds for precise delivery
-- **Visual cues**: "[Point to X]", "[Show Y]" annotations
-- **Q&A prep**: 8 anticipated questions with detailed answers
+### 🎥 Demo Presentation Features
+- **User 137 Case Study**: 42 emotional diary entries spanning 3 years (Jan 2021 - Dec 2023)
+- **Real-time Predictions**: <2 seconds on T4 GPU (Google Colab)
+- **Key Metrics Demonstrated**:
+  - Overall CCC: 0.6833 (+10.4% above target 0.62)
+  - Arousal improvement: +6% (0.5516 → 0.5832)
+  - 2-model ensemble: seed777 (50.16%) + arousal_specialist (49.84%)
 
 **Use Cases**:
 - 🎓 Academic presentations (class, conference, defense)
-- 💼 Job interviews (LLM Engineer, ML Engineer roles)
+- 💼 Job interviews (LLM Engineer, ML Engineer demonstrations)
 - 🏆 Competition presentations (SemEval 2026 symposium)
 - 📹 Portfolio video recordings
-
-**Key Metrics Highlighted**:
-- Overall CCC: 0.6833 (+10.4% above target 0.62)
-- Arousal improvement: +6% (0.5516 → 0.5832)
-- Prediction time: <2 seconds on T4 GPU
-- User 137: 42 entries, 3 years (2021-2023)
 
 ---
 
@@ -485,7 +448,6 @@ Deep-Learning-project-SemEval-2026-Task-2/
     │   └── 📄 NEXT_ACTIONS.md             # Next steps guide (Codabench submission)
     │
     ├── 📂 03_submission/                  # Submission materials
-    │   ├── 📄 Live_Demo_Script_EN_Full.md # ⭐ 10-12 min presentation script (28 KB, bilingual)
     │   └── final_submission/              # Final deliverables (January 2026) ⭐
     │       ├── 📄 README.md               # Submission package overview
     │       └── Final_PPT_and_REPORT/      # Academic deliverables
@@ -778,9 +740,8 @@ total_loss = loss_valence + loss_arousal
 ### Phase 8: Live Demo Package (Jan 28, 2026)
 - ✅ Created interactive demo notebook (User 137 example, pre-executed)
 - ✅ Generated 8 high-quality visualizations (demo_visualizations/)
-- ✅ Wrote comprehensive 10-12 min presentation script (bilingual EN/KR)
 - ✅ Organized final submission docs (Final_Submission_Docs/)
-- ✅ Updated .gitignore (exclude internal/sensitive files)
+- ✅ Updated .gitignore (exclude internal/sensitive files, demo scripts)
 - ✅ Created repository documentation (PROJECT_STRUCTURE.md, GIT_SYNC_CHECKLIST.md)
 - ✅ Fixed security issues (removed Hugging Face token from notebook)
 - ✅ Pushed all materials to GitHub (public-ready repository)
@@ -814,7 +775,6 @@ total_loss = loss_valence + loss_arousal
 | Document | Format | Size | Purpose | Last Updated |
 |----------|--------|------|---------|--------------|
 | **[README.md](docs/03_submission/final_submission/README.md)** | Markdown | 15 KB | Submission package overview | 2026-01-21 |
-| **[Live Demo Script](docs/03_submission/Live_Demo_Script_EN_Full.md)** ⭐ | Markdown | 28 KB | 10-12 min presentation guide (bilingual) | 2026-01-28 |
 | **[Joint Presentation](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval%202026%20Task2_%20Emotional%20State%20Change%20Forecasting%20Joint%20Presentation.pptx)** | PPTX | 3.3 MB | 31-slide presentation (Slides 16-31: Subtask 2a) | 2026-01-28 |
 | **[Technical Report](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval_2026_Task2_Report.docx)** | DOCX | 204 KB | Comprehensive academic report | 2026-01-28 |
 
@@ -1144,8 +1104,8 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 
 **Last Updated**: January 28, 2026
 **Competition Status**: ✅ Submission Ready | **Academic Deliverables**: ✅ Submitted
-**Demo Materials**: ✅ Complete (Interactive notebook + 8 visualizations + presentation script)
-**Documentation Status**: ✅ Complete (40-page report + 31-slide presentation + 8 guides + live demo package)
+**Demo Materials**: ✅ Complete (Interactive notebook + 8 visualizations)
+**Documentation Status**: ✅ Complete (40-page report + 31-slide presentation + 8 guides + demo package)
 **Repository Status**: ✅ Public-ready (cleaned, organized, security-verified)
 
 ---
@@ -1160,7 +1120,7 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 
 **📊 Test Predictions: 46 users × 1,266 total predictions**
 
-**🎬 Live Demo: Interactive notebook + 8 visualizations + 11-minute presentation**
+**🎬 Live Demo: Interactive notebook + 8 visualizations**
 
 **📦 Complete Package: 31-slide presentation + technical report + demo materials**
 
@@ -1171,7 +1131,6 @@ For additional troubleshooting, see [docs/01_core/QUICKSTART.md](docs/01_core/QU
 - 📖 **[Project Overview](PROJECT_STRUCTURE.md)** - Repository guide for external reviewers
 - 🚀 **[Quick Start Guide](docs/01_core/QUICKSTART.md)** - 6-step setup & usage
 - 📊 **[Technical Report (40 pages)](docs/02_reports/FINAL_REPORT.md)** - Comprehensive methodology
-- 🎤 **[Live Demo Script](docs/03_submission/Live_Demo_Script_EN_Full.md)** - 10-12 minute presentation
 - 🎬 **[Demo Notebook](scripts/demo/demo_live_presentation.ipynb)** - Interactive User 137 example
 - 🎨 **[Visualizations](demo_visualizations/)** - 8 high-quality PNG files
 - 📊 **[Final Presentation](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/)** - 31 slides + DOCX report

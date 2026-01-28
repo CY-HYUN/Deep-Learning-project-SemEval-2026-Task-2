@@ -108,7 +108,8 @@ docs/03_submission/SUBMISSION_VALIDATION.md
 docs/03_submission/_README.md
 Live_Demo_Script_EN_Full.md
 
-# Exclude intermediate demo scripts (keep only Live_Demo_Script_EN_Full.md)
+# Exclude demo scripts (internal use only)
+docs/03_submission/Live_Demo_Script_EN_Full.md
 docs/03_submission/Live_Demo_Script_Subtask2a_PRE_EXECUTED.md
 
 # Exclude internal planning files
