@@ -1,5 +1,7 @@
 # 훈련 기록 - 2025년 12월 24일
 
+> Note: working log kept in Korean; measured numbers are summarised in English in README.md Results.
+
 **작업자**: 현창용
 **작업 날짜**: 2025-12-24
 **작업 환경**: Google Colab Pro (A100 GPU)
@@ -15,9 +17,9 @@
 
 ### 결과 요약
 ✅ **대성공!**
-- 최종 CCC: **0.6833** (목표 0.62 대비 +10.4%)
+- 최종 CCC: **0.6554** (측정값, best single model seed777; 목표 0.62 대비 +5.7%)
 - Arousal CCC: **0.5832** (초기 0.55 대비 +6%)
-- 최적 앙상블: seed777 + arousal_specialist
+- 최적 앙상블: seed777 + arousal_specialist (앙상블 CCC는 미검증 projection)
 
 ---
 
@@ -235,10 +237,12 @@ all_models = {
 
 ### 앙상블 조합 테스트 결과
 
-#### 2-Model 앙상블 (Best 3)
-| 조합 | CCC 범위 | 평균 CCC | 순위 |
+> ⚠️ 아래 앙상블의 "CCC 범위"·"평균 CCC" 값은 전부 **검증되지 않은 projection**이다 (가중평균 + 가정된 boost). 실측된 값은 seed777 단독 **0.6554**뿐이며, 이것이 최종 보고 수치다. 순위(🥇🥈🥉)는 당시 projection 기준 선정 순서일 뿐 실측 대소가 아니다.
+
+#### 2-Model 앙상블 (Best 3, projected)
+| 조합 | CCC 범위 (projected) | 평균 CCC (projected) | 순위 |
 |------|----------|----------|------|
-| **seed777 + arousal_specialist** | 0.6733-0.6933 | **0.6833** | 🥇 1위 |
+| **seed777 + arousal_specialist** | 미검증 (projection 철회) | **0.6554** (실측 단독) | 🥇 선정 |
 | seed777 + seed888 | 0.6587-0.6787 | 0.6687 | 🥈 2위 |
 | seed888 + arousal_specialist | 0.6565-0.6765 | 0.6665 | 🥉 3위 |
 
@@ -262,27 +266,28 @@ all_models = {
 
 ### 핵심 발견
 
-#### 1. 2-Model이 최적!
+#### 1. 2-Model이 최적! (앙상블 수치는 미검증 projection)
 ```
-2-model (seed777 + arousal): 0.6833
-3-model (+ seed888): 0.6729 (-0.0104, -1.5%)
-4-model: 0.6491 (-0.0342, -5.0%)
-5-model: 0.6297 (-0.0536, -7.8%)
-```
-
-**분석**:
-- 모델 개수가 많다고 항상 좋은 것은 아님
-- seed888 추가가 오히려 성능 하락 초래
-- 2-model의 **순도**가 중요
-
-#### 2. Arousal Specialist의 우수성
-```
-seed777 + seed888: 0.6687
-seed777 + arousal_specialist: 0.6833 (+0.0146, +2.2%)
+seed777 + arousal (선정 조합) → 실측 단독 0.6554 (앙상블 자체는 미검증)
+projected 3-model (+ seed888): 0.6729 (미검증)
+projected 4-model: 0.6491 (미검증)
+projected 5-model: 0.6297 (미검증)
 ```
 
 **분석**:
-- Arousal Specialist가 seed888보다 **더 나은 보완 효과**
+- 당시 projection에서는 모델 수가 늘수록 평균이 낮아졌다 (전부 미검증)
+- 실측으로 확정된 값은 seed777 단독 0.6554뿐 — 이 "적을수록 좋다" 결론은 projection에 근거함
+- seed888 추가가 오히려 성능 하락을 초래한다는 것도 projection 기준 관찰
+
+#### 2. Arousal Specialist의 우수성 (projection 기준)
+```
+projected seed777 + seed888: 0.6687 (미검증)
+projected seed777 + arousal_specialist: seed888 조합보다 높게 projection (미검증)
+실측 기준값: seed777 단독 0.6554
+```
+
+**분석**:
+- 당시 projection에서는 arousal_specialist 조합이 seed888 조합보다 **더 나은 보완 효과**로 나왔으나 두 앙상블 모두 미검증
 - seed777(범용)과 arousal_specialist(특화)의 완벽한 조합
 - 다양성과 전문성의 균형
 
@@ -301,9 +306,9 @@ seed777 + arousal_specialist: 0.6833 (+0.0146, +2.2%)
 
 ### 최종 선택
 ```
-✅ 최종 앙상블: seed777 + arousal_specialist
-✅ 예상 CCC: 0.6733-0.6933 (평균 0.6833)
-✅ 목표 대비: +10.4% (0.62 → 0.6833)
+✅ 최종 앙상블: seed777 + arousal_specialist (앙상블 CCC는 미검증 projection)
+✅ 최종 보고 CCC: 0.6554 (측정값, best single model seed777)
+✅ 목표 대비: +5.7% (0.62 → 0.6554)
 ```
 
 ---
@@ -323,18 +328,21 @@ Phase 2 (12/23): seed888 추가
 └─ 상태: 좋은 개선, 하지만 최적은 아님
 
 Phase 3 (12/24): Arousal Specialist 도입 ⭐
-├─ CCC: 0.6833
-├─ 개선: +8.4% (baseline 대비)
-├─ 개선: +2.2% (Phase 2 대비)
-└─ 상태: 최적! 제출 준비 완료
+├─ 최종 보고 CCC: 0.6554 (실측 단독 seed777; 앙상블은 미검증 projection)
+├─ 목표 0.62 대비: +5.7%
+├─ (Phase 1·2 CCC는 projected ensemble이라 실측 0.6554와 직접 비교 불가)
+└─ 상태: 제출 준비 완료
 ```
 
 ### 성능 비교표
+
+> ⚠️ Baseline·Phase 2의 CCC는 projected ensemble이다. 실측된 값은 Phase 3 행의 seed777 단독 0.6554뿐이다.
+
 | 단계 | 모델 조합 | CCC | 개선률 | 비고 |
 |------|-----------|-----|--------|------|
-| Baseline | seed123 + seed777 | 0.6305 | - | 초기 목표 달성 |
-| Phase 2 | seed777 + seed888 | 0.6687 | +6.1% | 좋은 개선 |
-| **Phase 3** | **seed777 + arousal** | **0.6833** | **+8.4%** | ⭐ 최종 |
+| Baseline | seed123 + seed777 | 0.6305 (projected) | - | 초기 목표 |
+| Phase 2 | seed777 + seed888 | 0.6687 (projected) | +6.1% (proj) | projection |
+| **Phase 3** | **seed777 (단독, 실측)** | **0.6554** | **목표 대비 +5.7%** | ⭐ 최종 보고값 |
 
 ---
 
@@ -377,10 +385,10 @@ Final Ensemble (추정): ~0.58-0.59
 - 문제 분석 → 특화 설계 → 훈련 → 앙상블
 - 다양성보다 **보완성**이 중요
 
-### 2. 적은 것이 더 많을 수 있다
+### 2. 적은 것이 더 많을 수 있다 (projection 기준, 미검증)
 **발견**:
-- 2-model (0.6833) > 3-model (0.6729) > 4-model (0.6491)
-- 모델 개수 증가가 항상 좋은 것은 아님
+- 당시 projection에서는 모델 수가 적을수록 평균 CCC가 높게 나왔다 (3-model 0.6729, 4-model 0.6491 등 — 전부 미검증 projection)
+- 실측으로 확정된 값은 seed777 단독 0.6554뿐이며, 이 "적을수록 좋다" 결론은 projection에 근거해 실측으로 확인되지 않았다
 
 **교훈**:
 - **순도(purity)**와 **품질(quality)** 우선
@@ -436,7 +444,7 @@ Final Ensemble (추정): ~0.58-0.59
 ✅ results/subtask2a/optimal_ensemble.json
    - 최적 조합: seed777 + arousal_specialist
    - 가중치: 50.16% / 49.84%
-   - 예상 CCC: 0.6833
+   - 실측 CCC: 0.6554 (seed777 단독; 앙상블 값은 미검증 projection)
 ```
 
 ### 문서 파일
@@ -472,7 +480,7 @@ Model Architecture:
 │   └─ Dropout: 0.3
 │
 ├─ Multi-Head Attention
-│   ├─ Num Heads: 8
+│   ├─ Num Heads: 4 (정정: train_arousal_specialist.py:443 num_attention_heads=4)
 │   ├─ Embed Dim: 768
 │   └─ Dropout: 0.1
 │
@@ -552,18 +560,19 @@ def ensemble_predict(pred_777, pred_arousal):
 ├─ arousal_specialist: 0.6512
 └─ seed777: 0.6554 (최고)
 
-앙상블 CCC:
-├─ 2-model (seed123+777): 0.6305 (초기)
-├─ 2-model (seed777+888): 0.6687
-├─ 2-model (seed777+arousal): 0.6833 (최종) ⭐
-├─ 3-model: 0.6729
-├─ 4-model: 0.6491
-└─ 5-model: 0.6297
+앙상블 CCC (전부 미검증 projection — 실측값 아님):
+├─ 2-model (seed123+777): 0.6305 (projected, 초기)
+├─ 2-model (seed777+888): 0.6687 (projected)
+├─ 3-model: 0.6729 (projected)
+├─ 4-model: 0.6491 (projected)
+└─ 5-model: 0.6297 (projected)
 
-개선율:
-├─ Phase 1 → 2: +6.1%
-├─ Phase 1 → 3: +8.4%
-└─ Phase 2 → 3: +2.2%
+실측 CCC (검증됨):
+├─ seed777 단독: 0.6554 (최종 보고값) ⭐
+└─ 목표 0.62 대비: +5.7%
+
+개선율 (projection 내부 비교):
+└─ Phase 1 → 2 (projected): +6.1%
 ```
 
 ---
@@ -593,9 +602,9 @@ def ensemble_predict(pred_777, pred_arousal):
 ## 🎯 결론
 
 ### 성과
-✅ **목표 CCC 0.62 → 0.6833 달성 (+10.4%)**
+✅ **목표 CCC 0.62 → 0.6554 달성 (+5.7%, 실측 best single model)**
 ✅ **Arousal 성능 개선 (+6%)**
-✅ **최적 앙상블 발견 (seed777 + arousal_specialist)**
+✅ **최적 앙상블 선정 (seed777 + arousal_specialist; 앙상블 CCC는 미검증 projection)**
 ✅ **체계적 실험 및 문서화 완료**
 
 ### 핵심 성공 요인
