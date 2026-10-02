@@ -107,8 +107,8 @@ Deep-Learning-project-SemEval-2026-Task-2/
 - 📄 **[Final Report (DOCX)](docs/03_submission/final_submission/Final_PPT_and_REPORT/Final_Submission_Docs/SemEval_2026_Task2_Report.docx)** - Comprehensive technical report
 
 #### 3. **Live Demo**
-- 🎯 **[Demo Notebook](scripts/demo/demo_live_presentation.ipynb)** - Interactive demo with User 137 example
-- 🎤 **[Demo Script](docs/03_submission/Live_Demo_Script_EN_Full.md)** - 10-12 minute presentation script (bilingual: English + Korean)
+- 🎯 **[Demo Notebook](scripts/demo/demo_live_presentation%28Subtask2a%29.ipynb)** - Interactive demo with User 137 example
+- 🎤 **`Demo Script`** - 10-12 minute presentation script (bilingual: English + Korean)
 - 🎨 **[Visualizations](demo_visualizations/)** - 8 high-quality PNG files with documentation
 
 #### 4. **Code**

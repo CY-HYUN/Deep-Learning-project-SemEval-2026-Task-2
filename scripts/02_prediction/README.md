@@ -162,9 +162,9 @@ final_pred = (
 ## 📖 References
 
 See project documentation:
-- [PROJECT_STATUS.md](../../docs/PROJECT_STATUS.md) - Current project status
-- [FINAL_REPORT.md](../../docs/FINAL_REPORT.md) - Section 11.6: Google Colab Prediction Pipeline
-- [NEXT_ACTIONS.md](../../docs/NEXT_ACTIONS.md) - Submission guide
+- [PROJECT_STATUS.md](../../docs/01_core/PROJECT_STATUS.md) - Current project status
+- [FINAL_REPORT.md](../../docs/03_submission/final_submission/Report/FINAL_REPORT.md) - Section 11.6: Google Colab Prediction Pipeline
+- [NEXT_ACTIONS.md](../../docs/02_development/NEXT_ACTIONS.md) - Submission guide
 
 ---
 

@@ -215,9 +215,9 @@ python validate_predictions.py ../../pred_subtask2a.csv
 ## 📖 References
 
 See project documentation:
-- [PROJECT_STATUS.md](../../docs/PROJECT_STATUS.md) - Performance tracking
-- [TRAINING_STRATEGY.md](../../docs/TRAINING_STRATEGY.md) - Ensemble strategy
-- [FINAL_REPORT.md](../../docs/FINAL_REPORT.md) - Complete analysis
+- [PROJECT_STATUS.md](../../docs/01_core/PROJECT_STATUS.md) - Performance tracking
+- [TRAINING_STRATEGY.md](../../docs/01_core/TRAINING_STRATEGY.md) - Ensemble strategy
+- [FINAL_REPORT.md](../../docs/03_submission/final_submission/Report/FINAL_REPORT.md) - Complete analysis
 - [results/subtask2a/optimal_ensemble.json](../../results/subtask2a/optimal_ensemble.json) - Optimal weights
 
 ---

@@ -1,6 +1,6 @@
 # 📚 프로젝트 문서
 
-> **즉시 시작**: 프로젝트 루트의 [QUICKSTART.md](../QUICKSTART.md)를 참고하세요!
+> **즉시 시작**: 프로젝트 루트의 [QUICKSTART.md](QUICKSTART.md)를 참고하세요!
 
 ---
 
@@ -23,7 +23,7 @@ docs/
 ## 🚀 시작 가이드
 
 ### 1. 지금 뭘 해야 하나요?
-**→ [NEXT_ACTIONS.md](NEXT_ACTIONS.md)** ⭐⭐⭐
+**→ [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md)** ⭐⭐⭐
 
 다음에 할 일이 우선순위별로 정리되어 있습니다:
 - 필수: 평가파일 대기
@@ -41,7 +41,7 @@ docs/
 4단계 성능 향상 전략이 상세히 설명되어 있습니다.
 
 ### 4. 즉시 실행하고 싶어요
-**→ [../QUICKSTART.md](../QUICKSTART.md)** ⭐⭐⭐
+**→ [../QUICKSTART.md](QUICKSTART.md)** ⭐⭐⭐
 
 6단계로 나뉜 실행 가이드가 있습니다.
 
@@ -73,7 +73,7 @@ Arousal: 0.55 (개선 필요)
 
 ## 📖 핵심 문서
 
-### [NEXT_ACTIONS.md](NEXT_ACTIONS.md) ⭐ 가장 중요!
+### [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) ⭐ 가장 중요!
 **내용**: 다음에 할 일 (우선순위별)
 - 필수 작업 (평가파일 대기 및 제출)
 - 선택 작업 A (seed888 훈련, 2시간)
@@ -112,7 +112,7 @@ Arousal: 0.55 (개선 필요)
 
 ## 🗂️ 참고 문서 (archive/)
 
-### [01_PROJECT_OVERVIEW.md](archive/01_PROJECT_OVERVIEW.md)
+### [01_PROJECT_OVERVIEW.md](../05_archive/01_PROJECT_OVERVIEW.md)
 **내용**: 프로젝트 전체 배경
 - SemEval 2026 Task 2 공식 요구사항
 - 교수님 평가 기준
@@ -123,7 +123,7 @@ Arousal: 0.55 (개선 필요)
 
 ---
 
-### [03_SUBMISSION_GUIDE.md](archive/03_SUBMISSION_GUIDE.md)
+### [03_SUBMISSION_GUIDE.md](../05_archive/03_SUBMISSION_GUIDE.md)
 **내용**: Codabench 제출 상세 가이드
 - 평가파일 다운로드
 - 예측 생성 방법
@@ -134,7 +134,7 @@ Arousal: 0.55 (개선 필요)
 
 ---
 
-### [EVALUATION_METRICS_EXPLAINED.md](archive/EVALUATION_METRICS_EXPLAINED.md)
+### [EVALUATION_METRICS_EXPLAINED.md](../05_archive/EVALUATION_METRICS_EXPLAINED.md)
 **내용**: 평가 지표 상세 설명
 - Pearson r vs CCC
 - Subtask 1 vs 2a 차이
@@ -150,13 +150,13 @@ Arousal: 0.55 (개선 필요)
 
 | 상황 | 문서 |
 |------|------|
-| 지금 뭘 해야 하지? | [NEXT_ACTIONS.md](NEXT_ACTIONS.md) |
+| 지금 뭘 해야 하지? | [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) |
 | 현재 상태가 어떻게 되지? | [PROJECT_STATUS.md](PROJECT_STATUS.md) |
 | 성능을 높이고 싶어 | [TRAINING_STRATEGY.md](TRAINING_STRATEGY.md) |
-| 바로 실행하고 싶어 | [../QUICKSTART.md](../QUICKSTART.md) |
-| 제출은 어떻게 하지? | [archive/03_SUBMISSION_GUIDE.md](archive/03_SUBMISSION_GUIDE.md) |
-| 평가 기준이 뭐지? | [archive/01_PROJECT_OVERVIEW.md](archive/01_PROJECT_OVERVIEW.md) |
-| 평가 지표가 뭐지? | [archive/EVALUATION_METRICS_EXPLAINED.md](archive/EVALUATION_METRICS_EXPLAINED.md) |
+| 바로 실행하고 싶어 | [../QUICKSTART.md](QUICKSTART.md) |
+| 제출은 어떻게 하지? | [archive/03_SUBMISSION_GUIDE.md](../05_archive/03_SUBMISSION_GUIDE.md) |
+| 평가 기준이 뭐지? | [archive/01_PROJECT_OVERVIEW.md](../05_archive/01_PROJECT_OVERVIEW.md) |
+| 평가 지표가 뭐지? | [archive/EVALUATION_METRICS_EXPLAINED.md](../05_archive/EVALUATION_METRICS_EXPLAINED.md) |
 
 ---
 
@@ -168,7 +168,7 @@ Arousal: 0.55 (개선 필요)
 - 전략 개요
 - 프로젝트 구조
 
-### [QUICKSTART.md](../QUICKSTART.md) ⭐
+### [QUICKSTART.md](QUICKSTART.md) ⭐
 - 6단계 실행 가이드
 - 각 단계별 명령어
 - Troubleshooting
@@ -184,32 +184,32 @@ Arousal: 0.55 (개선 필요)
 - **Google Colab**: https://colab.research.google.com/
 
 ### 내부
-- **스크립트 설명**: [../scripts/README.md](../scripts/README.md)
-- **결과 파일**: [../results/subtask2a/README.md](../results/subtask2a/README.md)
+- **스크립트 설명**: [../scripts/README.md](../../scripts/README.md)
+- **결과 파일**: [../results/subtask2a/README.md](../../results/subtask2a/README.md)
 
 ---
 
 ## 💡 추천 읽기 순서
 
 ### 처음 시작하는 경우
-1. [NEXT_ACTIONS.md](NEXT_ACTIONS.md) - 다음 할 일
+1. [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) - 다음 할 일
 2. [PROJECT_STATUS.md](PROJECT_STATUS.md) - 현재 상태
-3. [../QUICKSTART.md](../QUICKSTART.md) - 실행 방법
+3. [../QUICKSTART.md](QUICKSTART.md) - 실행 방법
 
 ### seed888 훈련을 고려하는 경우
-1. [NEXT_ACTIONS.md](NEXT_ACTIONS.md) - 선택 작업 A
+1. [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) - 선택 작업 A
 2. [TRAINING_STRATEGY.md](TRAINING_STRATEGY.md) - 1단계 상세
-3. [../QUICKSTART.md](../QUICKSTART.md) - 1단계 실행
+3. [../QUICKSTART.md](QUICKSTART.md) - 1단계 실행
 
 ### 평가파일 릴리스 후
-1. [NEXT_ACTIONS.md](NEXT_ACTIONS.md) - 필수 작업
-2. [archive/03_SUBMISSION_GUIDE.md](archive/03_SUBMISSION_GUIDE.md) - 제출 가이드
-3. [../QUICKSTART.md](../QUICKSTART.md) - 6단계 실행
+1. [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) - 필수 작업
+2. [archive/03_SUBMISSION_GUIDE.md](../05_archive/03_SUBMISSION_GUIDE.md) - 제출 가이드
+3. [../QUICKSTART.md](QUICKSTART.md) - 6단계 실행
 
 ### 논문/보고서 작성 시
 1. [PROJECT_STATUS.md](PROJECT_STATUS.md) - 전체 정리
-2. [archive/01_PROJECT_OVERVIEW.md](archive/01_PROJECT_OVERVIEW.md) - 배경
-3. [archive/EVALUATION_METRICS_EXPLAINED.md](archive/EVALUATION_METRICS_EXPLAINED.md) - 지표
+2. [archive/01_PROJECT_OVERVIEW.md](../05_archive/01_PROJECT_OVERVIEW.md) - 배경
+3. [archive/EVALUATION_METRICS_EXPLAINED.md](../05_archive/EVALUATION_METRICS_EXPLAINED.md) - 지표
 
 ---
 
@@ -242,5 +242,5 @@ Arousal: 0.55 (개선 필요)
 ---
 
 **최신 상태**: ✅ 2025-12-19
-**다음 읽을 문서**: [NEXT_ACTIONS.md](NEXT_ACTIONS.md) ⭐
-**즉시 실행**: [../QUICKSTART.md](../QUICKSTART.md)
+**다음 읽을 문서**: [NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md) ⭐
+**즉시 실행**: [../QUICKSTART.md](QUICKSTART.md)

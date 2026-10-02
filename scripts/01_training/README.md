@@ -180,9 +180,9 @@ python train_arousal_specialist.py
 ## 📖 References
 
 See project documentation:
-- [PROJECT_STATUS.md](../../docs/PROJECT_STATUS.md) - Current project status
-- [TRAINING_STRATEGY.md](../../docs/TRAINING_STRATEGY.md) - Detailed training strategy
-- [FINAL_REPORT.md](../../docs/FINAL_REPORT.md) - Complete technical report
+- [PROJECT_STATUS.md](../../docs/01_core/PROJECT_STATUS.md) - Current project status
+- [TRAINING_STRATEGY.md](../../docs/01_core/TRAINING_STRATEGY.md) - Detailed training strategy
+- [FINAL_REPORT.md](../../docs/03_submission/final_submission/Report/FINAL_REPORT.md) - Complete technical report
 
 ---
 

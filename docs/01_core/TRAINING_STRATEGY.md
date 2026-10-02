@@ -416,7 +416,7 @@ Arousal CCC ≥ 0.60
 
 ## 🔗 관련 문서
 
-- **[QUICKSTART.md](../QUICKSTART.md)**: 즉시 실행 가이드
+- **[QUICKSTART.md](QUICKSTART.md)**: 즉시 실행 가이드
 - **[PROJECT_STATUS.md](PROJECT_STATUS.md)**: 현재 상태
 - **[README.md](../README.md)**: 프로젝트 개요
 

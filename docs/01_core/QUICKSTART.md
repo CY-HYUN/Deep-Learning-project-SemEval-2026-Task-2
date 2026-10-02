@@ -101,21 +101,21 @@ Deep-Learning-project-SemEval-2026-Task-2/
 ## 🚀 Quick Access
 
 ### For Training
-See [scripts/01_training/README.md](scripts/01_training/README.md)
+See [scripts/01_training/README.md](../../scripts/01_training/README.md)
 
 **Available Scripts**:
 - `train_ensemble.py` - Train models with different seeds
 - `train_arousal_specialist.py` - Train Arousal-specialized model
 
 ### For Prediction
-See [scripts/02_prediction/README.md](scripts/02_prediction/README.md)
+See [scripts/02_prediction/README.md](../../scripts/02_prediction/README.md)
 
 **Available Scripts**:
 - `predict_optimized.py` - Generate predictions (local)
 - `run_prediction_colab.ipynb` - Google Colab prediction ⭐ Production
 
 ### For Evaluation
-See [scripts/03_evaluation/README.md](scripts/03_evaluation/README.md)
+See [scripts/03_evaluation/README.md](../../scripts/03_evaluation/README.md)
 
 **Available Scripts**:
 - `calculate_ensemble_weights.py` - Find optimal weights
@@ -201,15 +201,15 @@ Measured CCC: 0.6554 (best single model)
 ## 📖 Documentation
 
 ### Quick References
-- **[PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Current project status
-- **[FINAL_REPORT.md](docs/FINAL_REPORT.md)** - 40-page technical report
-- **[NEXT_ACTIONS.md](docs/NEXT_ACTIONS.md)** - Next steps guide
-- **[TRAINING_STRATEGY.md](docs/TRAINING_STRATEGY.md)** - Training strategy details
+- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current project status
+- **[FINAL_REPORT.md](../03_submission/final_submission/Report/FINAL_REPORT.md)** - 40-page technical report
+- **[NEXT_ACTIONS.md](../02_development/NEXT_ACTIONS.md)** - Next steps guide
+- **[TRAINING_STRATEGY.md](TRAINING_STRATEGY.md)** - Training strategy details
 
 ### Script-Specific Guides
-- **[01_training/README.md](scripts/01_training/README.md)** - Training guide
-- **[02_prediction/README.md](scripts/02_prediction/README.md)** - Prediction guide
-- **[03_evaluation/README.md](scripts/03_evaluation/README.md)** - Evaluation guide
+- **[01_training/README.md](../../scripts/01_training/README.md)** - Training guide
+- **[02_prediction/README.md](../../scripts/02_prediction/README.md)** - Prediction guide
+- **[03_evaluation/README.md](../../scripts/03_evaluation/README.md)** - Evaluation guide
 
 ---
 

@@ -294,16 +294,16 @@ Valence CCC: 0.7593
 ## 📞 빠른 참조
 
 ### 즉시 실행 가이드
-- **[QUICKSTART.md](../QUICKSTART.md)**: 6단계 실행 가이드
+- **[QUICKSTART.md](../01_core/QUICKSTART.md)**: 6단계 실행 가이드
 
 ### 상세 전략
-- **[TRAINING_STRATEGY.md](TRAINING_STRATEGY.md)**: 훈련 전략 상세
+- **[TRAINING_STRATEGY.md](../01_core/TRAINING_STRATEGY.md)**: 훈련 전략 상세
 
 ### 현재 상태
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)**: 프로젝트 현황 (업데이트됨)
+- **[PROJECT_STATUS.md](../01_core/PROJECT_STATUS.md)**: 프로젝트 현황 (업데이트됨)
 
 ### 제출 가이드
-- **[archive/03_SUBMISSION_GUIDE.md](archive/03_SUBMISSION_GUIDE.md)**: 상세 제출 가이드
+- **[archive/03_SUBMISSION_GUIDE.md](../05_archive/03_SUBMISSION_GUIDE.md)**: 상세 제출 가이드
 
 ---
 

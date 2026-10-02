@@ -18,7 +18,7 @@ Training logs and improvement analysis / 훈련 로그 및 개선 분석
 Competition submission documentation / 대회 제출 관련 문서
 - SUBMISSION_VALIDATION.md, GIT_SYNC_GUIDE.md, final_submission/
 
-### [04_communication/](04_communication/) - Communications / 커뮤니케이션
+### `04_communication/` - Communications / 커뮤니케이션
 Email correspondence with organizers / 주최측 이메일 커뮤니케이션
 - EMAIL_ANALYSIS.md, EMAIL_TO_ORGANIZERS.md, CORRECT_UNDERSTANDING.md
 
@@ -39,7 +39,7 @@ Deprecated and reference documents / 구버전 및 참고용 문서
 - [02_development/](02_development/) - Development logs / 개발 로그
 
 **For submission:**
-- [03_submission/SUBMISSION_VALIDATION.md](03_submission/SUBMISSION_VALIDATION.md) - Validation checklist / 검증 체크리스트
+- `03_submission/SUBMISSION_VALIDATION.md` - Validation checklist / 검증 체크리스트
 
 ---
 

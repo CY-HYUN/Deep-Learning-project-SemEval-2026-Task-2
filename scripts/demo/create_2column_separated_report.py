@@ -9,13 +9,17 @@ from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+import os
 
 print('='*80)
 print('Creating 2-Column Separated Report (Subtask 1 | Subtask 2a)')
 print('='*80)
 
 # Output path
-docx_path = r'D:\Study\Github\Deep-Learning-project-SemEval-2026-Task-2\docs\03_submission\final_submission\PPT, REPORT\SemEval_2026_Task2_Final_Report_Separated.docx'
+# the project root is two folders up from this script (scripts/demo/)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+docx_path = os.path.join(PROJECT_ROOT, 'docs', '03_submission', 'final_submission', 'PPT, REPORT',
+                         'SemEval_2026_Task2_Final_Report_Separated.docx')
 
 # Create document
 print('\n[1/4] Creating Word document...')

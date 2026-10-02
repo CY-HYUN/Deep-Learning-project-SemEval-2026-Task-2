@@ -56,7 +56,8 @@ if 'google.colab' in sys.modules or os.path.exists('/content'):
     print('🔍 Detected: Google Colab environment')
 else:
     # Local environment
-    BASE_DIR = 'D:/Study/Github/Deep-Learning-project-SemEval-2026-Task-2'
+    # the project root is two folders up from this script (scripts/archive/); SEMEVAL_BASE_DIR overrides it
+    BASE_DIR = os.environ.get('SEMEVAL_BASE_DIR') or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).replace('\\', '/')
     TEST_DATA_PATH = f'{BASE_DIR}/data/test/test_subtask2a.csv'
     MODEL_DIR = f'{BASE_DIR}/models'
     RESULTS_DIR = f'{BASE_DIR}/results/subtask2a'

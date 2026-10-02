@@ -11,7 +11,7 @@ This folder contains visualizations for the SemEval 2026 Task 2a project, includ
 ### 1. User 137 Emotional Timeline
 **File**: `01_user137_emotional_timeline.png` (134 KB, 2085×1035 px)
 
-**Source**: Demo notebook Cell 13 ([demo_live_presentation.ipynb](../scripts/demo/demo_live_presentation.ipynb))
+**Source**: Demo notebook Cell 13 ([demo_live_presentation.ipynb](../scripts/demo/demo_live_presentation%28Subtask2a%29.ipynb))
 
 **Description**:
 - 2 subplots showing User 137's emotional journey over 3 years (42 entries, Jan 2021 - Dec 2023)
@@ -192,7 +192,7 @@ This folder contains visualizations for the SemEval 2026 Task 2a project, includ
 To regenerate demo notebook visualizations (files 1-3):
 
 ```bash
-cd D:\Study\Github\Deep-Learning-project-SemEval-2026-Task-2\scripts\demo
+cd scripts/demo        # from the project root
 python extract_visualizations.py
 ```
 
@@ -206,9 +206,9 @@ python extract_visualizations.py
 
 **Date**: January 28, 2026 (08:47)
 
-**Source Notebook**: [demo_live_presentation.ipynb](../scripts/demo/demo_live_presentation.ipynb)
+**Source Notebook**: [demo_live_presentation.ipynb](../scripts/demo/demo_live_presentation%28Subtask2a%29.ipynb)
 
-**Presentation Script**: [Live_Demo_Script_EN_Full.md](../docs/03_submission/Live_Demo_Script_EN_Full.md)
+**Presentation Script**: `Live_Demo_Script_EN_Full.md`
 
 ---
 

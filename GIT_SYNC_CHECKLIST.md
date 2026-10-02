@@ -131,7 +131,7 @@ git status
 
 ### Step 1: Review Changes
 ```bash
-cd "D:\Study\Github\Deep-Learning-project-SemEval-2026-Task-2"
+cd <your clone of Deep-Learning-project-SemEval-2026-Task-2>
 git status
 ```
 
