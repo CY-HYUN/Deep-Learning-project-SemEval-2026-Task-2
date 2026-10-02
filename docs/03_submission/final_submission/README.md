@@ -32,7 +32,7 @@ final_submission/
 - 모델 아키텍처 (RoBERTa + BiLSTM + Attention)
 - **핵심 혁신**: Arousal-Specialized Model
 - 실험 결과 및 앙상블 최적화
-- 최종 성과: **CCC 0.6833** (목표 0.62 대비 +10.4%)
+- 최종 성과: **CCC 0.6554** (측정된 최고 단일 모델 seed777, 목표 0.62 대비 +5.7%)
 - 배운 점 및 향후 방향
 
 **형식**: 마크다운 (PowerPoint 변환 가능)
@@ -70,7 +70,7 @@ final_submission/
 **optimal_ensemble.json**:
 - 최적 앙상블 구성 (seed777 + arousal_specialist)
 - 가중치: 50.16% / 49.84%
-- 성능: CCC 0.6833
+- 성능: 파일의 앙상블 CCC는 검증되지 않은 추정치 (측정 최고 단일 모델은 seed777 CCC 0.6554)
 
 **model_performance_table.md**:
 - 5개 모델 성능 비교표
@@ -86,12 +86,13 @@ final_submission/
 
 ### 성능 지표
 ```
-✅ Overall CCC: 0.6833
+✅ Overall CCC: 0.6554 (measured best single model, seed777)
    - Target: 0.62
-   - Achievement: +10.4% above target
+   - Achievement: +5.7% above target
 
    Valence CCC: 0.7593
-   Arousal CCC: 0.5832 (+6% improvement)
+   Arousal CCC: 0.5516
+   (Arousal Specialist model separately reached Arousal CCC 0.5832, +0.0316 over seed777)
 ```
 
 ### 핵심 혁신
@@ -104,7 +105,7 @@ final_submission/
 ### 최적 앙상블
 **2-Model Ensemble**:
 - seed777 (50.16%) + arousal_specialist (49.84%)
-- CCC 0.6833 (2-model > 3-model > 5-model)
+- 측정 최고 단일 모델 = seed777 CCC 0.6554; 앙상블 CCC는 검증되지 않은 추정 (2-model > 3-model > 5-model 비교도 추정치 간 비교)
 
 ---
 
@@ -115,7 +116,7 @@ final_submission/
 
 **차이점**:
 - **1차 발표**: 프로젝트 계획 및 초기 결과 (Baseline 모델)
-- **최종 발표**: 실제 달성 성과 (CCC 0.6833, Arousal Specialist 혁신)
+- **최종 발표**: 실제 달성 성과 (CCC 0.6554, Arousal Specialist 혁신)
 
 ---
 
@@ -171,7 +172,7 @@ pandoc Final_Presentation.md -o Final_Presentation.pptx
 제출 전 확인사항:
 
 - [ ] 교수님 성함 및 학교명 기재
-- [ ] 모든 성과 정확히 반영 (CCC 0.6833)
+- [ ] 모든 성과 정확히 반영 (CCC 0.6554)
 - [ ] 참고문헌 및 인용 확인
 - [ ] 오탈자 및 포맷 검토
 - [ ] 파일명 및 폴더 구조 확인
@@ -204,8 +205,8 @@ pandoc Final_Presentation.md -o Final_Presentation.pptx
 **상태**: ✅ 제출 준비 완료
 
 **최종 성과**:
-- Overall CCC: 0.6833
-- 목표 달성: +10.4% above target (0.62)
+- Overall CCC: 0.6554 (측정 최고 단일 모델)
+- 목표 달성: +5.7% above target (0.62)
 - 제출 마감: 2026년 1월 10일
 
 ---

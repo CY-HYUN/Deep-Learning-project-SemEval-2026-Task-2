@@ -1,3 +1,6 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+
 # SemEval 2026 Task 2a Presentation Script
 ## 10-15 Minute Natural Speaking Guide (English + Korean)
 
@@ -192,10 +195,10 @@ Here you can see the benchmarks for all five models I trained. seed777 is my str
 ## [SLIDE 12] Detailed Model Comparison Chart (25 sec)
 
 ### English Script:
-I put together this comparison chart to visualize all the results clearly. It shows Combined CCC, Valence CCC, and Arousal CCC across all five models plus the final ensemble. See how the 2-model ensemble clearly beats the 0.62 target line, hitting 0.6833? This chart really highlights how the arousal specialist brings that unique strength in the arousal dimension that the generalist models were missing. I created this visualization myself using my actual model performance data.
+I put together this comparison chart to visualize all the results clearly. It shows Combined CCC, Valence CCC, and Arousal CCC across all five models plus the projected ensemble. See how my strongest single model, seed777, clearly beats the 0.62 target line at 0.6554? The 2-model ensemble was projected to push a little higher, but I never validated that estimate, so I report the measured 0.6554 as my honest result. This chart really highlights how the arousal specialist brings that unique strength in the arousal dimension that the generalist models were missing. I created this visualization myself using my actual model performance data.
 
 ### Korean Script:
-모든 결과를 명확하게 시각화하려고 이 비교 차트를 직접 만들었어요. 다섯 개 모델과 최종 앙상블의 Combined CCC, Valence CCC, Arousal CCC를 보여줍니다. 2-모델 앙상블이 0.62 목표선을 명확히 넘어서 0.6833을 달성한 거 보이시죠? 이 차트가 arousal specialist가 범용 모델들에게 없던 arousal 차원의 독특한 강점을 어떻게 가져오는지 정말 잘 보여줘요. 이 시각화는 제 실제 모델 성능 데이터를 사용해서 직접 만든 겁니다.
+모든 결과를 명확하게 시각화하려고 이 비교 차트를 직접 만들었어요. 다섯 개 모델과 projected 앙상블의 Combined CCC, Valence CCC, Arousal CCC를 보여줍니다. 제 가장 강력한 단일 모델인 seed777이 0.62 목표선을 명확히 넘어서 0.6554를 달성한 거 보이시죠? 2-모델 앙상블은 여기서 조금 더 올라갈 걸로 예상했지만 그 추정치를 검증하지는 않아서, 실측값인 0.6554를 정직한 결과로 보고합니다. 이 차트가 arousal specialist가 범용 모델들에게 없던 arousal 차원의 독특한 강점을 어떻게 가져오는지 정말 잘 보여줘요. 이 시각화는 제 실제 모델 성능 데이터를 사용해서 직접 만든 겁니다.
 
 ---
 
@@ -212,7 +215,7 @@ But here's the interesting part—when I tried 3-model or 5-model configurations
 
 I also tested fancy meta-learning approaches—Ridge regression, XGBoost stacking, all that. Everything underperformed compared to this simple weighted average. Sometimes simple really is better.
 
-Final achievement: CCC of 0.6833, which beats the competition target of 0.62 by 10.4%. That's a 13% improvement over my initial 3-model baseline.
+Final measured achievement: my best single model reached a CCC of 0.6554, which beats the competition target of 0.62 by 5.7%. The 2-model ensemble was a projected estimate on top of that which I never validated, so 0.6554 is the number I stand behind.
 
 ### Korean Script:
 이게 아마 제 연구에서 가장 반직관적인 발견일 거예요—왜 2개 모델이 3개나 5개보다 나은가.
@@ -225,17 +228,17 @@ Final achievement: CCC of 0.6833, which beats the competition target of 0.62 by 
 
 고급 메타 학습 접근법도 테스트했어요—Ridge 회귀, XGBoost 스태킹, 다 해봤어요. 전부 이 단순 가중 평균에 비해 성능이 떨어졌어요. 때로는 단순한 게 정말 더 나아요.
 
-최종 성과: CCC 0.6833인데, 대회 목표인 0.62를 10.4%나 넘었어요. 제 초기 3-모델 기준선보다 13% 개선된 거죠.
+최종 실측 성과: 제 가장 강력한 단일 모델이 CCC 0.6554를 기록했는데, 대회 목표인 0.62를 5.7% 넘었어요. 2-모델 앙상블은 그 위에 얹은 예상 추정치였고 검증하지 않아서, 제가 확실히 말할 수 있는 값은 0.6554입니다.
 
 ---
 
 ## [SLIDE 14] Comprehensive Results Summary (35 sec)
 
 ### English Script:
-Let me wrap up the numbers for you. I achieved a final Combined CCC of 0.6833, which is 10.4% above the target. To get there, I trained 5 models total across different random seeds and configurations, using about 10 GPU hours on Google Colab's A100. The final ensemble? Just 2 models—the generalist and the specialist—in near-perfect balance. This chart I made from my own results really demonstrates that focused, intelligent model design beats just throwing more models at the problem.
+Let me wrap up the numbers for you. My best single model reached a measured Combined CCC of 0.6554, which is 5.7% above the target. To get there, I trained 5 models total across different random seeds and configurations, using about 10 GPU hours on Google Colab's A100. The ensemble I designed on top? Just 2 models—the generalist and the specialist—in near-perfect balance, though its extra gain was a projection I didn't validate. This chart I made from my own results really demonstrates that focused, intelligent model design beats just throwing more models at the problem.
 
 ### Korean Script:
-숫자를 정리해드릴게요. 최종 Combined CCC 0.6833을 달성했는데, 목표보다 10.4% 높아요. 여기까지 오기 위해, 다양한 랜덤 시드와 구성에 걸쳐 총 5개 모델을 훈련시켰고, Google Colab의 A100에서 약 10 GPU 시간을 썼어요. 최종 앙상블은요? 겨우 2개 모델—범용과 전문가—거의 완벽한 균형으로요. 제 실제 결과로 만든 이 차트가 집중적이고 지능적인 모델 설계가 단순히 더 많은 모델을 던지는 것보다 낫다는 걸 정말 잘 보여줘요.
+숫자를 정리해드릴게요. 제 가장 강력한 단일 모델이 실측 Combined CCC 0.6554를 기록했는데, 목표보다 5.7% 높아요. 여기까지 오기 위해, 다양한 랜덤 시드와 구성에 걸쳐 총 5개 모델을 훈련시켰고, Google Colab의 A100에서 약 10 GPU 시간을 썼어요. 그 위에 설계한 앙상블은요? 겨우 2개 모델—범용과 전문가—거의 완벽한 균형으로요, 다만 추가 이득은 검증하지 않은 예상치였어요. 제 실제 결과로 만든 이 차트가 집중적이고 지능적인 모델 설계가 단순히 더 많은 모델을 던지는 것보다 낫다는 걸 정말 잘 보여줘요.
 
 ---
 
@@ -272,10 +275,10 @@ Three big takeaways from this project. Technically, dimension-specific optimizat
 ## [SLIDE 18] Conclusion (35 sec)
 
 ### English Script:
-To wrap up: I exceeded the target by achieving CCC of 0.6833, beating the 0.62 benchmark by 10.4% through systematic iteration and intelligent design. The key innovation—that Arousal-Specialized Model—solved the 38% prediction gap by shifting loss weighting to 90% CCC. This whole project really proves that dimension-specific optimization beats one-size-fits-all approaches, and that focused engineering with deep problem analysis outperforms just blindly scaling up models. Here's the final performance summary I created from my actual results showing we hit all our targets.
+To wrap up: I exceeded the target with a measured CCC of 0.6554 from my best single model, beating the 0.62 benchmark by 5.7% through systematic iteration and intelligent design. The key innovation—that Arousal-Specialized Model—solved the 38% prediction gap by shifting loss weighting to 90% CCC. This whole project really proves that dimension-specific optimization beats one-size-fits-all approaches, and that focused engineering with deep problem analysis outperforms just blindly scaling up models. Here's the final performance summary I created from my actual results showing we hit all our targets.
 
 ### Korean Script:
-정리하자면: CCC 0.6833을 달성해서 목표를 초과했어요. 체계적인 반복과 지능적인 설계로 0.62 벤치마크를 10.4% 넘었죠. 주요 혁신인—그 Arousal-Specialized 모델—이 손실 가중치를 90% CCC로 바꿔서 38% 예측 격차를 해결했어요. 이 전체 프로젝트가 정말 증명하는 건 차원별 최적화가 일괄 적용 접근법을 이기고, 깊은 문제 분석을 가진 집중적 엔지니어링이 단순히 모델을 맹목적으로 스케일업하는 것을 능가한다는 거예요. 여기 제 실제 결과로 만든 최종 성능 요약인데 모든 목표를 달성한 게 보여요.
+정리하자면: 제 가장 강력한 단일 모델의 실측 CCC 0.6554로 목표를 초과했어요. 체계적인 반복과 지능적인 설계로 0.62 벤치마크를 5.7% 넘었죠. 주요 혁신인—그 Arousal-Specialized 모델—이 손실 가중치를 90% CCC로 바꿔서 38% 예측 격차를 해결했어요. 이 전체 프로젝트가 정말 증명하는 건 차원별 최적화가 일괄 적용 접근법을 이기고, 깊은 문제 분석을 가진 집중적 엔지니어링이 단순히 모델을 맹목적으로 스케일업하는 것을 능가한다는 거예요. 여기 제 실제 결과로 만든 최종 성능 요약인데 모든 목표를 달성한 게 보여요.
 
 ---
 
@@ -292,10 +295,10 @@ Looking ahead, short-term I'm planning to test RoBERTa-large for an expected 2-3
 ## [SLIDE 20] Project Lifecycle & Key Milestones (20 sec)
 
 ### English Script:
-The project ran 15 months through six phases: November 2024 EDA and baseline, December grid search hitting 0.63 CCC, late December specialist development, December 24th discovering optimal weights at 0.6833, January 7th production pipeline for predictions, and January 13th final documentation.
+The project ran 15 months through six phases: November 2024 EDA and baseline, December grid search hitting 0.63 CCC, late December specialist development, December 24th finalizing the ensemble weights with the measured best single model at 0.6554, January 7th production pipeline for predictions, and January 13th final documentation.
 
 ### Korean Script:
-프로젝트는 6단계에 걸쳐 15개월 진행됐어요. 2024년 11월 EDA와 기준선, 12월 그리드 검색으로 CCC 0.63 달성, 12월 말 전문가 개발, 12월 24일 0.6833에서 최적 가중치 발견, 1월 7일 예측용 프로덕션 파이프라인, 1월 13일 최종 문서화였어요.
+프로젝트는 6단계에 걸쳐 15개월 진행됐어요. 2024년 11월 EDA와 기준선, 12월 그리드 검색으로 CCC 0.63 달성, 12월 말 전문가 개발, 12월 24일 앙상블 가중치 확정(실측 최고 단일 모델 0.6554), 1월 7일 예측용 프로덕션 파이프라인, 1월 13일 최종 문서화였어요.
 
 ---
 
@@ -331,7 +334,7 @@ Thank you for your attention. I'm happy to answer any questions about the archit
 ## Presentation Tips
 
 1. **Natural Flow**: Read as if telling a story to a colleague, not reciting
-2. **Voice Modulation**: Emphasize "38%", "90% CCC", "0.6833", "+10.4%"
+2. **Voice Modulation**: Emphasize "38%", "90% CCC", "0.6554", "+5.7%"
 3. **Pauses**: Breathe naturally between slides, especially before Slide 10
 4. **Personal Touch**: When showing self-made visualizations (Slides 5, 8, 12, 14, 18), mention "I created this from my actual results"
 5. **Conversational Tone**: Use contractions ("I'm", "that's", "it's") for natural speech

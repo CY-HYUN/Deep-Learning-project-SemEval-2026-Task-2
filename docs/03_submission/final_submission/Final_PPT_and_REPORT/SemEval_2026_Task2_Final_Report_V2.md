@@ -1,3 +1,6 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+
 # SemEval 2026 Task 2: Emotional State Change Forecasting
 ## Final Project Report
 
@@ -109,9 +112,11 @@ The SemEval 2026 Task 2 dataset consists of longitudinal ecological essays with 
 
 #### Final Validation Results
 ```
-✅ Overall CCC: 0.6833 (Target: 0.62, +10.4% above target)
-   ├── Valence CCC:  0.7834
-   └── Arousal CCC:  0.5832 (+6.0% improvement through specialization)
+✅ Best single-model CCC (measured, seed777): 0.6554 (Target: 0.62, +5.7% above target)
+   ├── Valence CCC:  0.7593
+   └── Arousal CCC:  0.5516
+   (Arousal-specialist model separately reached Arousal CCC 0.5832, +0.0316 over seed777;
+    the 2-model ensemble was a projected estimate that was never validated)
 ```
 
 #### Performance Evolution
@@ -120,7 +125,9 @@ The SemEval 2026 Task 2 dataset consists of longitudinal ecological essays with 
 | Phase 1 | 3-model (seed42+123+777) | 0.6046 | Baseline | Nov 2024 |
 | Phase 2 | 2-model (seed123+777) | 0.6305 | +4.3% | Dec 2024 |
 | Phase 3 | seed777 + seed888 | 0.6687 | +10.6% | Dec 23, 2024 |
-| Phase 4 | seed777 + arousal_specialist | **0.6833** | **+13.0%** | Dec 24, 2024 |
+| Phase 4 | seed777 (measured best single model) | **0.6554** | **+5.7% vs 0.62 target** | Dec 24, 2024 |
+
+> Note: Phases 1–3 report projected ensemble CCCs (weighted-average estimates that were never validated). The honest, measured headline is the best single model, seed777, at CCC 0.6554.
 
 #### Individual Model Benchmarks
 | Model | Overall CCC | Valence CCC | Arousal CCC | Training Time |
@@ -132,7 +139,7 @@ The SemEval 2026 Task 2 dataset consists of longitudinal ecological essays with 
 #### Test Set Submission
 - **Test Users**: 46 users
 - **Total Predictions**: 1,266 (Valence + Arousal pairs)
-- **Expected Test CCC**: 0.6733 - 0.6933 (conservative to optimistic range)
+- **Test CCC**: the official Codabench test score is not recorded in this repository
 - **Submission File**: `pred_subtask2a.csv` (submitted January 2026)
 
 ### Key Findings
@@ -194,7 +201,7 @@ The SemEval 2026 Task 2 dataset consists of longitudinal ecological essays with 
 
 6. **Key Innovation Contribution**
    - **Arousal-Specialist Model**: Solved 38% prediction gap through loss engineering
-   - **Result**: Overall CCC 0.6833 (+10.4% above target of 0.62)
+   - **Result**: best single-model CCC 0.6554 (+5.7% above target of 0.62); the 2-model ensemble was a projection, not validated
    - **Impact**: Demonstrated dimension-specific optimization outperforms multi-tasking by 4.3%
 
 #### Time Investment
@@ -215,7 +222,7 @@ The SemEval 2026 Task 2 dataset consists of longitudinal ecological essays with 
 
 ## Conclusion
 
-This project successfully forecasted emotional state changes (Subtask 2a) by achieving **CCC 0.6833**, exceeding the competition target by **10.4%**. The key innovation—the Arousal-Specialist Model—solved a systematic 38% performance gap through dimension-specific loss engineering (90% CCC weighting), proving that focused optimization outperforms generic multi-tasking approaches. The final 2-model ensemble demonstrates that quality exceeds quantity in ensemble design. All code, documentation, and trained models have been organized into a production-ready pipeline submitted for the SemEval 2026 competition.
+This project successfully forecasted emotional state changes (Subtask 2a) by achieving a measured **CCC 0.6554** with its best single model, exceeding the competition target by **5.7%**. The key innovation—the Arousal-Specialist Model—solved a systematic 38% performance gap through dimension-specific loss engineering (90% CCC weighting), proving that focused optimization outperforms generic multi-tasking approaches. The final 2-model ensemble demonstrates that quality exceeds quantity in ensemble design. All code, documentation, and trained models have been organized into a production-ready pipeline submitted for the SemEval 2026 competition.
 
 ---
 

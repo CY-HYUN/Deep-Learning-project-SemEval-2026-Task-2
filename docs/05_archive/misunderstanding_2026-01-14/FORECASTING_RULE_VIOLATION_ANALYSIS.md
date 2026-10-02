@@ -359,7 +359,7 @@ START: Received organizer warning emails
 
 ## 🎯 Expected Outcome
 
-**Current Performance**: CCC 0.6833 (using rule-violating methodology)
+**Current Performance**: best single-model validation CCC 0.6554 (seed777); this analysis was later found to be a misunderstanding (see README.md in this folder)
 
 **After Correction**:
 - ⚠️ Performance may decrease slightly (less information available)

@@ -1,3 +1,6 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+
 # Evaluation Metrics Explained - SemEval 2026 Task 2
 
 **Created**: 2025-12-10

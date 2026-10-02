@@ -1,3 +1,6 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+
 # 프로젝트 현재 상태
 
 **마지막 업데이트**: 2026-01-07
@@ -10,13 +13,15 @@
 
 ### 🏆 최종 성능 (제출 준비 완료)
 ```
-모델 구성: 2-model ensemble (seed777 + arousal_specialist)
-예상 CCC: 0.6833 (범위: 0.6733-0.6933)
+최고 단일 모델: seed777 (best single model)
+측정 CCC: 0.6554 (실측 validation CCC)
 목표 CCC: 0.62
-상태: 목표 초과 달성! (+10.4%)
+상태: 목표 초과 달성! (+5.7%)
 제출 상태: ✅ submission.zip 생성 완료 (2026-01-07)
 예측 개수: 46 users (테스트 데이터 전체)
 ```
+
+> 참고: 최종 제출은 seed777 + arousal_specialist 2-model 앙상블 방식을 사용하지만, 앙상블 CCC는 검증되지 않은 추정치(projected, not validated)였다. 정직한 실측 헤드라인 값은 최고 단일 모델 seed777의 **CCC 0.6554**다.
 
 ### 개별 모델 성능
 | 모델 | CCC | Valence CCC | Arousal CCC | 상태 |
@@ -37,7 +42,7 @@
 
 **결정 근거**:
 - Arousal Specialist가 seed888보다 더 나은 보완 효과
-- 2-model 앙상블이 3-model보다 우수 (0.6833 > 0.6729)
+- 2-model 앙상블 방식 채택 (3-model 대비 우수 — 앙상블 값은 추정치, 미검증)
 - 거의 완벽한 균형 (50:50)
 
 ---
@@ -45,7 +50,7 @@
 ## 🎯 프로젝트 목표
 
 ### 최소 목표 (달성 완료 ✅)
-- **CCC 0.62 이상**: ✅ 달성 (0.6833 예상)
+- **CCC 0.62 이상**: ✅ 달성 (0.6554 실측)
 - **Codabench 제출**: ✅ 제출 준비 완료 (2026-01-07)
 - **최종 보고서**: ⏳ 1월
 
@@ -159,8 +164,8 @@ docs/:
 
 - [x] **최종 앙상블 최적화**
   - 모든 모델 조합 테스트 (2-model ~ 5-model)
-  - 최적 조합 발견: seed777 + arousal_specialist
-  - 최종 CCC: **0.6833** (목표 대비 +10.4%)
+  - 최적 조합: seed777 + arousal_specialist
+  - 최고 단일 모델 실측 CCC: **0.6554** (목표 대비 +5.7%)
 
 - [x] **문서 업데이트**
   - PROJECT_STATUS.md 업데이트
@@ -181,7 +186,7 @@ docs/:
 - [x] **최종 예측 파일 생성**
   - pred_subtask2a.csv: 46명 사용자 예측 ✅
   - submission.zip: 0.73 KB ✅
-  - 예상 CCC: 0.6733-0.6933 (평균 0.6833)
+  - 측정 CCC: 0.6554 (최고 단일 모델)
 
 ---
 
@@ -197,14 +202,14 @@ docs/:
 
 ### 1. Codabench 제출 ⏰
 **제출 파일**: submission.zip (0.73 KB) ✅ 준비 완료
-**예상 CCC**: 0.6733-0.6933 (평균 0.6833)
+**측정 CCC**: 0.6554 (최고 단일 모델)
 **제출 마감**: 2026-01-10
 **URL**: https://www.codabench.org/competitions/9963/
 
 ### 2. 제출 후 작업
 1. **결과 확인**
    - 실제 CCC 확인
-   - 예상 CCC와 비교
+   - 측정 CCC와 비교
 
 2. **오류 발생 시**
    - 에러 메시지 분석
@@ -233,7 +238,7 @@ docs/:
 - ✅ **최종 앙상블 최적화**
   - 모든 조합 테스트 완료
   - 최적 조합: seed777 + arousal_specialist
-  - 최종 CCC: **0.6833** (+10.4%)
+  - 최고 단일 모델 실측 CCC: **0.6554** (+5.7%)
 
 ### 2026-01-07 (완료 ✅) ⭐⭐ NEW
 - ✅ **Google Colab 예측 생성**
@@ -244,7 +249,7 @@ docs/:
 - ✅ **최종 제출 파일 생성**
   - pred_subtask2a.csv: 46 users 예측
   - submission.zip: 0.73 KB
-  - 예상 CCC: 0.6733-0.6933
+  - 측정 CCC: 0.6554 (최고 단일 모델)
 
 ### 2026-01-07~01-10 (진행 중 ⏳)
 - [ ] Codabench 제출 (마감: 2026-01-10)
@@ -272,20 +277,20 @@ docs/:
 **실제 결과**:
 ```
 최적 모델: seed777 + arousal_specialist (2-model)
-달성 CCC: 0.6833
+측정 CCC: 0.6554 (최고 단일 모델 seed777)
 실제 시간: ~2.5시간 (seed888: 2시간, arousal: 24분)
 성공 여부: ✅ 대성공!
 ```
 
 **핵심 발견**:
-- seed888을 제외한 2-model이 최적
+- seed888을 제외한 2-model 조합이 최적
 - Arousal Specialist가 seed888보다 더 나은 보완 효과
-- 3-model (0.6729) < 2-model (0.6833)
+- 최고 단일 모델 실측 CCC 0.6554 (앙상블 CCC는 미검증 추정치)
 
-**성능 진화**:
+**성능 진화** (2-model 값은 가중평균 + 가정 boost 추정치로 미검증, seed777 단독만 실측):
 1. seed123 + seed777: 0.6305 (초기)
-2. seed777 + seed888: 0.6687 (+6.1%)
-3. seed777 + arousal_specialist: **0.6833** (+8.4%) ⭐ 최종
+2. seed777 + seed888: 0.6687
+3. seed777 (best single): **0.6554** (실측 헤드라인 값) ⭐
 
 ---
 
@@ -307,10 +312,10 @@ Arousal CCC: 0.55 (개선 필요) ⚠️
 
 **✅ 해결 방법: Arousal Specialist 훈련**
 
-**최종 결과** (seed777 + arousal_specialist):
+**최종 결과** (seed777, best single model):
 ```
-Overall CCC: 0.6833 (+8.4% from baseline)
-Arousal CCC: 0.5832 (+6.0% from 0.55)
+Overall CCC: 0.6554 (실측 best single model)
+Arousal CCC: 0.5832 (arousal_specialist, +6.0% from 0.55)
 Valence CCC: ~0.72-0.76 (유지)
 ```
 
@@ -380,7 +385,7 @@ Scheduler: Linear warmup + decay
 ### ✅ 완료된 최적화 작업
 1. ✅ **seed888 훈련** - CCC 0.6211 달성
 2. ✅ **Arousal Specialist 훈련** - Arousal CCC 0.5832 달성
-3. ✅ **최종 앙상블 최적화** - CCC 0.6833 달성
+3. ✅ **최종 앙상블 최적화** - 최고 단일 모델 CCC 0.6554 달성
 
 ### ⏳ 현재 대기 중
 1. **평가파일 릴리스 모니터링**
@@ -391,7 +396,7 @@ Scheduler: Linear warmup + decay
 1. **파일 다운로드 및 검증**
 2. **최종 예측 생성** (Google Colab Pro)
    - 사용 모델: seed777 + arousal_specialist
-   - 예상 CCC: 0.6733-0.6933
+   - 측정 CCC: 0.6554 (최고 단일 모델)
 3. **Codabench 제출**
 
 ---
@@ -406,17 +411,17 @@ Scheduler: Linear warmup + decay
 - ✅ seed888: CCC 0.6211 달성
 - ✅ Arousal Specialist: Arousal CCC 0.5832 달성
 - ✅ **최종 앙상블**: seed777 + arousal_specialist
-- ✅ **최종 CCC**: **0.6833** (목표 대비 +10.4%)
+- ✅ **최고 단일 모델 실측 CCC**: **0.6554** (목표 대비 +5.7%)
 
 **핵심 통찰**:
-1. **2-model이 최적**: 3-model보다 우수 (0.6833 > 0.6729)
+1. **2-model 조합 채택**: 3-model보다 우수 (앙상블 값은 미검증 추정치)
 2. **Arousal Specialist 효과**: seed888보다 더 나은 보완
 3. **완벽한 균형**: 50:50 가중치 비율
 
 **시간 투자**:
 - seed888: ~2시간 (A100 GPU)
 - Arousal Specialist: ~24분 (A100 GPU)
-- 총: ~2.5시간으로 +8.4% 성능 향상
+- 총: ~2.5시간으로 목표 0.62 대비 +5.7% 성능 확보
 
 ---
 
@@ -462,7 +467,7 @@ Scheduler: Linear warmup + decay
 ## 📈 프로젝트 성과 요약
 
 ### 최종 성능
-- **Overall CCC**: 0.6833 (목표 0.62 대비 +10.4%)
+- **Overall CCC**: 0.6554 (목표 0.62 대비 +5.7%, 최고 단일 모델 실측)
 - **Arousal CCC**: 0.5832 (초기 0.55 대비 +6.0%)
 - **최종 앙상블**: seed777 (50.16%) + arousal_specialist (49.84%)
 
@@ -484,8 +489,8 @@ Scheduler: Linear warmup + decay
    - 완벽한 50:50 균형
 
 3. **성능 진화**
-   - 0.6305 → 0.6687 → 0.6833
-   - 총 +8.4% 향상
+   - 0.6305 → 0.6687 → 0.6554 (best single, 실측 헤드라인)
+   - 목표 0.62 대비 +5.7%
 
 ---
 

@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+> The projected scores and rank estimates below were planning guesses: none was run or measured.
+
 # Final Status Summary - SemEval 2026 Task 2
 
 **Date**: 2026-01-14
@@ -43,10 +47,10 @@
 ```
 
 **Model Performance** (validation):
-- CCC Average: 0.6833
-- Valence CCC: ~0.76
-- Arousal CCC: ~0.61
-- Ensemble: seed777 (50.16%) + arousal_specialist (49.84%)
+- Best single-model CCC: 0.6554 (seed777, measured)
+- Valence CCC: 0.7593
+- Arousal CCC: 0.5516
+- Ensemble: seed777 (50.16%) + arousal_specialist (49.84%) — projected only, never validated
 
 ---
 
@@ -128,17 +132,15 @@ Your submission is already done and confirmed correct. You can now:
 
 ---
 
-## 📊 Expected Performance
+## 📊 Measured Performance
 
 Based on our validation results:
 
-**Conservative Estimate**: CCC 0.65-0.68
-**Expected**: CCC 0.68-0.70
-**Optimistic**: CCC 0.70+
+**Best single-model CCC (measured)**: 0.6554 (seed777) — +5.7% above the 0.62 target
+**Ensemble CCC**: projected only, never validated
 
 **Competitive Target**: Top 10-15%
-- Our CCC 0.6833 is strong performance
-- Ensemble approach should be robust
+- Our measured CCC 0.6554 is strong performance
 - Arousal-specialized model helps balance performance
 
 ---
@@ -189,7 +191,7 @@ Based on our validation results:
 - ✅ Deadline: January 25 (still 10 days away)
 
 **Performance**:
-- Expected CCC: 0.68-0.70
+- Measured best single-model CCC: 0.6554 (+5.7% above target)
 - Competitive position: Likely top 10-15%
 
 **Next Milestone**: Results announcement after January 25

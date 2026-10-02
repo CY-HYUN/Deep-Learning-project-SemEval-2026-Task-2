@@ -477,12 +477,12 @@ Model Architecture:
 │   ├─ Hidden Size: 256
 │   ├─ Num Layers: 2
 │   ├─ Bidirectional: True
-│   └─ Dropout: 0.3
+│   └─ Dropout: 0.2 (정정: train_arousal_specialist.py:464 dropout=dropout, :538 dropout=0.2)
 │
 ├─ Multi-Head Attention
 │   ├─ Num Heads: 4 (정정: train_arousal_specialist.py:443 num_attention_heads=4)
-│   ├─ Embed Dim: 768
-│   └─ Dropout: 0.1
+│   ├─ Embed Dim: 512 (정정: train_arousal_specialist.py:468 embed_dim=lstm_hidden*2, lstm_hidden=256)
+│   └─ Dropout: 0.2 (정정: train_arousal_specialist.py:470 dropout=dropout, :538 dropout=0.2)
 │
 ├─ Temporal Features (20 dimensions)
 │   ├─ Lag features (4): valence/arousal t-1, t-2
@@ -495,8 +495,8 @@ Model Architecture:
 │       └─ arousal_acceleration
 │
 └─ Dual-Head Output
-    ├─ Valence Head (Linear: 768+20 → 1)
-    └─ Arousal Head (Linear: 768+20 → 1)
+    ├─ Valence Head (Linear: 128 → 64 → 1) (정정: train_arousal_specialist.py:482-487, 입력 = fusion 출력 128 (:474-479); 시간 특징 20개는 :516에서 LSTM 앞 입력에 결합)
+    └─ Arousal Head (Linear: 128 → 64 → 1) (정정: train_arousal_specialist.py:489-494)
 ```
 
 ### Loss 함수

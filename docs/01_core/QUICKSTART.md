@@ -1,7 +1,10 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+
 # 🚀 SemEval 2026 Task 2 - Quick Start Guide
 
 **Last Updated**: 2026-01-12
-**Current Status**: ✅ Submission Ready (CCC 0.6833)
+**Current Status**: ✅ Submission Ready (CCC 0.6554)
 **Next Action**: Codabench submission
 
 ---
@@ -10,8 +13,8 @@
 
 ```
 Final Ensemble: seed777 + arousal_specialist
-Expected CCC: 0.6833 (Range: 0.6733-0.6933)
-Target CCC: 0.62 ✅ (+10.4% above target)
+Measured CCC: 0.6554 (best single model, seed777)
+Target CCC: 0.62 ✅ (+5.7% above target)
 Submission: submission.zip (0.73 KB, ready)
 Test Users: 46 users
 ```
@@ -23,7 +26,7 @@ Test Users: 46 users
 ### Phase 1-5: Model Training & Optimization (12/23-24)
 - ✅ seed888 training - CCC 0.6211
 - ✅ Arousal Specialist training - Arousal CCC 0.5832 (+6%)
-- ✅ Final ensemble optimization - CCC 0.6833
+- ✅ Final ensemble optimization - best single-model CCC 0.6554
 - ✅ Documentation updated
 
 ### Phase 6: Google Colab Prediction (2026-01-07)
@@ -136,12 +139,12 @@ See [scripts/03_evaluation/README.md](scripts/03_evaluation/README.md)
 ### Ensemble Comparison
 | Combination | CCC | Weights | Status |
 |-------------|-----|---------|--------|
-| **seed777 + arousal_specialist** | **0.6833** | 50.16% / 49.84% | ✅ Final |
+| **seed777 + arousal_specialist** | projected (not validated) | 50.16% / 49.84% | ✅ Final |
 | seed777 + seed888 | 0.6687 | 55% / 45% | - |
 | seed777 + seed888 + arousal | 0.6729 | 40% / 30% / 30% | - |
 | All 5 models | 0.6654 | Various | - |
 
-**Key Finding**: 2-model ensemble is optimal (0.6833 > 0.6729)
+**Note**: The final 2-model ensemble CCC was a projected estimate, never validated. The honest measured headline is the best single model, seed777, at CCC 0.6554.
 
 ---
 
@@ -152,7 +155,7 @@ See [scripts/03_evaluation/README.md](scripts/03_evaluation/README.md)
 URL: https://www.codabench.org/competitions/9963/
 File: submission.zip (0.73 KB) ✅
 Deadline: 2026-01-10
-Expected CCC: 0.6733-0.6933 (avg 0.6833)
+Measured CCC: 0.6554 (best single model)
 ```
 
 **Submission Steps**:
@@ -163,7 +166,7 @@ Expected CCC: 0.6733-0.6933 (avg 0.6833)
 
 ### 2. Post-Submission
 - [ ] Verify results
-- [ ] Compare with expected CCC (0.6833)
+- [ ] Compare with measured CCC (0.6554)
 - [ ] Resubmit if errors occur
 
 ---
@@ -183,9 +186,9 @@ Expected CCC: 0.6733-0.6933 (avg 0.6833)
    - Simple weighted average beats complex meta-learning
 
 3. **Performance Evolution**
-   - Initial: 0.6305
-   - After seed888: 0.6687 (+6.1%)
-   - **Final: 0.6833 (+8.4%)** ⭐
+   - Initial 2-model: 0.6305
+   - After seed888: 0.6687
+   - **Best single model (seed777): 0.6554 — measured headline (+5.7% over 0.62 target)** ⭐
 
 ### Project Organization
 - ✅ Subtask1 cleanup (~200-300 MB saved)
@@ -235,37 +238,23 @@ Expected CCC: 0.6733-0.6933 (avg 0.6833)
 
 ---
 
-## 📊 Expected Results
+## 📊 Measured Result
 
-### Conservative Estimate (85% probability)
+### Best single model (seed777) — measured
 ```
-Overall CCC: 0.6733
-Arousal CCC: 0.5700
-Valence CCC: 0.7766
-```
-
-### Expected (70% probability)
-```
-Overall CCC: 0.6833
-Arousal CCC: 0.5832
-Valence CCC: 0.7834
+Overall CCC: 0.6554
+Arousal CCC: 0.5516
+Valence CCC: 0.7593
 ```
 
-### Optimistic (50% probability)
-```
-Overall CCC: 0.6933
-Arousal CCC: 0.5950
-Valence CCC: 0.7916
-```
-
-**All scenarios exceed target (0.62) by 8-11%** ✅
+**Measured result exceeds target (0.62) by +5.7%** ✅
 
 ---
 
 ## 🎉 Project Summary
 
 **Status**: ✅ All work complete, submission ready
-**Performance**: 0.6833 CCC (Target 0.62 exceeded by +10.4%)
+**Performance**: 0.6554 CCC (Target 0.62 exceeded by +5.7%)
 **Models**: 5 trained, 2 selected for final ensemble
 **Next Action**: Codabench submission (Deadline: 2026-01-10)
 

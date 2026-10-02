@@ -45,9 +45,8 @@ Deprecated and reference documents / 구버전 및 참고용 문서
 
 ## 📊 Project Status / 프로젝트 상태
 
-**Final Performance / 최종 성능**: CCC 0.6833
-- Valence CCC: 0.7831
-- Arousal CCC: 0.5836
+**Final Performance / 최종 성능**: CCC 0.6554 (measured best single model — seed777, validation CCC / 실측 최고 단일 모델)
+- Projected ensemble, not validated / 검증되지 않은 앙상블 추정치: Valence CCC 0.7831, Arousal CCC 0.5836
 
 **Status / 상태**: ✅ Ready for submission / 제출 준비 완료
 

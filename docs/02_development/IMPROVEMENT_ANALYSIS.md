@@ -1,3 +1,6 @@
+> Superseded numbers: this working document predates the verified results. The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+> The projected scores and rank estimates below were planning guesses: none was run or measured.
+
 # Improvement Analysis - Can We Do Better?
 
 **Date**: 2026-01-14
@@ -91,9 +94,9 @@ final = predictions.groupby('user_id').last()  # 46 users
 
 ### 현재 성능 (구버전 사용)
 ```
-CCC Average: 0.6833
-Valence CCC: ~0.76
-Arousal CCC: ~0.61
+Best single-model CCC: 0.6554 (seed777, 실측)
+Valence CCC: 0.7593
+Arousal CCC: 0.5516
 
 모델: seed777 + arousal_specialist ensemble
 ```
@@ -104,7 +107,7 @@ Arousal CCC: ~0.61
 ```
 데이터 2.8% 증가
 → 성능 0.5-1% 향상?
-→ CCC: 0.6833 → 0.687-0.690 (?)
+→ CCC: 소폭 상승 (?)
 
 증가분: +0.004-0.007 (매우 작음)
 ```
@@ -113,7 +116,7 @@ Arousal CCC: ~0.61
 ```
 데이터 2.8% 증가
 → 성능 거의 동일
-→ CCC: 0.6833 → 0.6835-0.6840 (오차 범위)
+→ CCC: 거의 동일 (오차 범위)
 
 증가분: +0.0002-0.0007 (무시할 수준)
 ```
@@ -122,7 +125,7 @@ Arousal CCC: ~0.61
 ```
 데이터 2.8% 증가
 → 노이즈 추가로 오히려 하락?
-→ CCC: 0.6833 → 0.680-0.683
+→ CCC: 소폭 하락
 
 감소분: -0.003-0.000 (약간 하락)
 ```
@@ -155,7 +158,7 @@ Arousal CCC: ~0.61
 ### 이유 2: **모델이 이미 수렴됨**
 
 ```
-현재 CCC: 0.6833
+현재 CCC: 0.6554
 
 이미:
 - 2-model ensemble 최적화
@@ -228,7 +231,7 @@ User 6:
 
 ## 📊 경쟁 관점
 
-### 현재 성능: CCC 0.6833
+### 현재 성능: CCC 0.6554
 
 **순위 추정** (보수적):
 ```
@@ -238,7 +241,7 @@ Top 10-15% 수준
 
 **0.007 향상 시** (최선의 경우):
 ```
-CCC: 0.6833 → 0.6903
+CCC: 현재 + 0.007
 순위: 변동 없거나 1-2칸 상승
 → 여전히 Top 10-15%
 ```
@@ -345,7 +348,7 @@ CCC: 0.6833 → 0.6903
    - 검증 다시 필요
 
 4. **현재 제출 이미 우수**
-   - CCC 0.6833 (강력함)
+   - CCC 0.6554 (강력함)
    - 주최측 승인받음
    - Top 10-15% 추정
 
@@ -398,7 +401,7 @@ ROI: 매우 낮음
 **이유**:
 - 데이터 증가 2.8% (22개 항목)만으로는 부족
 - User-level 집계 후 영향 더욱 미미
-- 현재 CCC 0.6833 이미 우수
+- 현재 CCC 0.6554 이미 우수
 - 1시간 투자 대비 가치 낮음
 
 **권장**: ✅ **현재 제출 유지**

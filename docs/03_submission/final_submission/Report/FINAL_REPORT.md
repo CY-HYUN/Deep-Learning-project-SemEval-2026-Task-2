@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+> The projected scores and rank estimates below were planning guesses: none was run or measured.
+
 # SemEval 2026 Task 2 Subtask 2a: State Change Forecasting
 ## Final Project Report
 
@@ -17,9 +21,9 @@ This report documents the complete development process and outcomes of my partic
 **Key Achievements**:
 - Trained 5 distinct deep learning models using transformer-based architectures
 - Developed an innovative Arousal Specialist model targeting the hardest prediction task
-- Achieved final ensemble CCC of **0.6833**, exceeding the target of 0.62 by **+10.4%**
+- Achieved a measured best single-model val CCC of **0.6554** (seed777), exceeding the target of 0.62 by **+5.7%** (the submitted 2-model ensemble of seed777 and the arousal specialist has only a projected CCC, never validated)
 - Improved Arousal prediction performance by **+6%** through specialized model design
-- Discovered that a 2-model ensemble outperforms larger 3-5 model combinations
+- In projected (unvalidated) estimates, a 2-model ensemble ranked above larger 3-5 model combinations; the measured best result, however, was the seed777 single model (0.6554)
 - **Successfully generated test predictions and submission file** (January 7, 2026)
 
 **Technical Contributions**:
@@ -1275,18 +1279,20 @@ all_models = {
 **Step 1**: Calculate all possible 2-model combinations
 
 ```
-Results (Top 5 of 10 combinations):
-1. seed777 + arousal_specialist: 0.6833 ⭐ BEST
+Results (Top 5 of 10 combinations — projected weighted-average CCCs, unvalidated):
+1. seed777 + arousal_specialist: withdrawn*
 2. seed777 + seed888: 0.6687
 3. seed888 + arousal_specialist: 0.6665
 4. seed123 + seed777: 0.6305 (Phase 2 baseline)
 5. seed123 + arousal_specialist: 0.6243
+
+*The top projection (weighted average plus an assumed boost) is withdrawn: it was never
+validated, so no combination was confirmed to beat the 0.6554 single model.
 ```
 
-**Surprising Finding #1**:
-- seed777 + arousal_specialist (0.6833) > seed777 + seed888 (0.6687)
-- Arousal Specialist provides better complement than seed888
-- **+2.2% improvement** (0.6687 → 0.6833) by replacing seed888 with arousal_specialist
+**Note on Finding #1 (projection only)**:
+- In the projected estimates, seed777 + arousal_specialist scored highest, but this was a weighted-average + assumed boost, never validated.
+- The measured best is the seed777 single model (0.6554); no ensemble improvement over it was confirmed, so the earlier "+2.2% by replacing seed888" claim does not hold.
 
 **Step 2**: Calculate all 3-model combinations
 
@@ -1299,24 +1305,22 @@ Results (Top 5 of 10 combinations):
 5. seed42 + seed777 + arousal_specialist: 0.6420
 ```
 
-**Surprising Finding #2**:
-- Best 3-model (0.6729) < Best 2-model (0.6833)
-- Adding seed888 to seed777+arousal **degrades** performance
-- **-1.5% degradation** (0.6833 → 0.6729)
+**Surprising Finding #2 (projection only)**:
+- Among the projected estimates, the best 3-model (0.6729) was below the best 2-model projection.
+- These are unvalidated projections; the measured best remains the seed777 single model (0.6554).
 
 **Step 3**: Calculate 4-model and 5-model ensembles
 
 ```
 Best 4-model ensemble:
-- seed123 + seed777 + seed888 + arousal_specialist: 0.6491
-- Performance: WORSE than 2-model (0.6491 < 0.6833)
+- seed123 + seed777 + seed888 + arousal_specialist: 0.6491 (projected)
 
 5-model ensemble:
-- All models: 0.6297
-- Performance: MUCH WORSE (0.6297 << 0.6833)
+- All models: 0.6297 (projected)
 
-Pattern: Performance DECREASES as models added!
-2-model (0.6833) > 3-model (0.6729) > 4-model (0.6491) > 5-model (0.6297)
+These are all unvalidated projections. Among the projected estimates, the apparent pattern
+was 2-model > 3-model (0.6729) > 4-model (0.6491) > 5-model (0.6297); but since none was
+validated, the measured best result remains the seed777 single model (0.6554).
 ```
 
 **Surprising Finding #3**: "Less is More"
@@ -1334,10 +1338,8 @@ Pattern: Performance DECREASES as models added!
     "seed777": 0.5016,              // 50.16%
     "arousal_specialist": 0.4984    // 49.84%
   },
-  "ccc_min": 0.6733,  // Conservative estimate (with 2% boost)
-  "ccc_max": 0.6933,  // Optimistic estimate (with 4% boost)
-  "ccc_avg": 0.6833,  // Expected performance
-  "boost_range": [0.02, 0.04]
+  "measured_best_single_model_ccc": 0.6554,  // seed777 (validation) — the honest result
+  "note": "Ensemble expected/boost range was projected only and never validated"
 }
 ```
 
@@ -1349,16 +1351,17 @@ Pattern: Performance DECREASES as models added!
 
 **Performance Summary**:
 ```
-Final Ensemble CCC: 0.6833
+Measured best single-model CCC: 0.6554 (seed777)
 Target CCC: 0.62
-Improvement over target: +10.4%
+Improvement over target: +5.7%
 
-Performance Evolution:
-- Phase 2 (seed123 + seed777): 0.6305
-- Phase 3 (seed777 + seed888): 0.6687 (+6.1%)
-- Phase 5 (seed777 + arousal_specialist): 0.6833 (+8.4% from Phase 2, +2.2% from Phase 3)
+Performance Evolution (Phase 2/3/5 ensemble figures are projected, never validated):
+- Phase 2 (seed123 + seed777): 0.6305 (projected)
+- Phase 3 (seed777 + seed888): 0.6687 (projected, +6.1% over Phase 2)
+- Phase 5 (seed777 + arousal_specialist): projection withdrawn (never validated);
+  measured best single model seed777 = 0.6554; no confirmed gain over Phase 3
 
-Total Improvement: +8.4% from initial ensemble
+Measured best result: seed777 single model = 0.6554
 ```
 
 **Why This Ensemble is Optimal**:
@@ -1913,18 +1916,20 @@ Tested all combinations from 2 models to 5 models (all trained models).
 
 **2-Model Ensembles** (10 combinations):
 
-| Rank | Models | Individual CCCs | Expected CCC | Weights |
+| Rank | Models | Individual CCCs | Expected CCC (projected, unvalidated) | Weights |
 |------|--------|-----------------|--------------|---------|
-| 1 | seed777 + arousal_specialist | 0.6554, 0.6512 | **0.6833** | 50.16%, 49.84% |
+| 1 | seed777 + arousal_specialist | 0.6554, 0.6512 | withdrawn* | 50.16%, 49.84% |
 | 2 | seed777 + seed888 | 0.6554, 0.6211 | 0.6687 | 51.33%, 48.67% |
 | 3 | seed888 + arousal_specialist | 0.6211, 0.6512 | 0.6665 | 48.80%, 51.20% |
 | 4 | seed123 + seed777 | 0.5330, 0.6554 | 0.6305 | 44.85%, 55.15% |
 | 5 | seed123 + arousal_specialist | 0.5330, 0.6512 | 0.6243 | 44.99%, 55.01% |
 
+*The "Expected CCC" column holds unvalidated weighted-average + boost projections. Row 1's projection is withdrawn; the measured best is seed777 alone (0.6554). Ranking reflects the (unvalidated) projected ordering only.
+
 **Key Observations**:
-- Best ensemble: seed777 + arousal_specialist (0.6833)
-- Nearly balanced weights (50:50) indicates strong complementarity
-- seed777 + seed888 (0.6687) significantly worse despite seed888 being individually strong (0.6211)
+- Measured best result: seed777 single model (0.6554); no ensemble was confirmed to beat it.
+- Nearly balanced weights (50:50) indicated strong complementarity in the projection.
+- These "Expected CCC" values were never validated on held-out data.
 
 **3-Model Ensembles** (10 combinations):
 
@@ -1937,8 +1942,8 @@ Tested all combinations from 2 models to 5 models (all trained models).
 | 5 | seed42 + seed777 + arousal | 0.6420 | |
 
 **Critical Finding**:
-- Best 3-model (0.6729) **WORSE** than best 2-model (0.6833)
-- Adding seed888 to seed777+arousal **degrades** performance by -1.5%
+- These are projected (unvalidated) ensemble estimates.
+- The measured best result is the seed777 single model (0.6554); no ensemble combination was validated.
 
 **4-Model Ensembles** (5 combinations):
 
@@ -1962,15 +1967,15 @@ Tested all combinations from 2 models to 5 models (all trained models).
 
 **Worst Performance**: Including all models gives worst ensemble result
 
-### 7.3 Analysis: Why 2-Model is Optimal
+### 7.3 Analysis: Why the 2-Model Projection Ranked Highest
 
 **Hypothesis 1: Weak Models Dilute Strong Models**
 
 ```
 2-model (seed777 + arousal):
 - Both models strong (0.6554, 0.6512)
-- Average: 0.6533
-- With boost: 0.6833
+- Weighted average: 0.6533
+- Projected with an assumed boost (never validated); honest result = seed777 measured 0.6554
 
 3-model (+ seed888):
 - seed888: 0.6211 (weaker)
@@ -2022,10 +2027,10 @@ Models with different design make different errors:
 
 **Justification**:
 
-1. **Highest Expected Performance**:
-   - 0.6833 CCC (best among all tested combinations)
-   - +10.4% above target (0.62)
-   - +8.4% above initial baseline (0.6305)
+1. **Result**:
+   - Measured best single-model CCC: **0.6554** (seed777)
+   - +5.7% above target (0.62)
+   - The multi-model ensembles were projected estimates only and were never validated
 
 2. **Balanced Contributions**:
    - 50.16% / 49.84% weights (nearly equal)
@@ -2052,13 +2057,11 @@ Models with different design make different errors:
 - Rationale: Redundancy with seed777, degrades ensemble
 - Excluded seed123 and seed42 (too weak)
 
-**Expected Performance on Test Set**:
+**Test-Set Expectation**:
 ```
-Conservative Estimate (2% boost): 0.6733
-Expected Estimate (3% boost): 0.6833
-Optimistic Estimate (4% boost): 0.6933
-
-All scenarios exceed 0.62 target ✅
+The conservative/expected/optimistic estimates were projections (weighted-average + an
+assumed 2-4% boost) and were never validated. The honest, measured result is the seed777
+single-model validation CCC of 0.6554, which exceeds the 0.62 target by +5.7%.
 ```
 
 ---
@@ -2123,16 +2126,16 @@ Phase 4: Arousal Specialist Development
 - Arousal CCC: 0.5832 (best arousal achieved)
 - Status: Competitive overall, breakthrough in arousal
 
-Phase 5: Final Ensemble (seed777 + arousal_specialist)
-- CCC: 0.6833
-- Change: +2.2% vs Phase 3, +8.4% vs Phase 2
-- Status: ⭐ BEST PERFORMANCE, exceeded target by +10.4%
+Phase 5: Final Ensemble (seed777 + arousal_specialist) — projected, not validated
+- Projection withdrawn (never validated); measured best single model seed777 = 0.6554
+- No confirmed gain over Phase 3's projected 0.6687
+- Measured best result: 0.6554, exceeding target by +5.7%
 ```
 
 **Performance Trajectory Visualization**:
 
 ```
-0.68 ┤                                              ● 0.6833 (Final)
+0.68 ┤                                              ● projected ensemble (unvalidated)
      │                                          ●
 0.67 ┤                                      ●
      │                              ●
@@ -2155,7 +2158,7 @@ Milestones:
 ● Mid Dec: seed777 best single (0.6554)
 ● Dec 23: seed777+seed888 ensemble (0.6687)
 ● Dec 24: Arousal Specialist (0.6512 single, 0.5832 arousal)
-● Dec 24: Final ensemble (0.6833)
+● Dec 24: Final ensemble (projected only; measured best single model = 0.6554)
 ```
 
 ### 8.3 Ablation Studies
@@ -2354,8 +2357,9 @@ Baseline 1 (Zero): 0.0000
 Baseline 2 (Mean): 0.1823
 Baseline 3 (Linear): 0.3421
 seed42: 0.5053 (+47.7% vs Baseline 3)
-seed777: 0.6554 (+91.6% vs Baseline 3)
-Final Ensemble: 0.6833 (+99.7% vs Baseline 3)
+seed777: 0.6554 (+91.6% vs Baseline 3) ⭐ measured best single model
+(The 2-model ensemble was a projection only and was never validated, so no measured
+ensemble value exceeds the seed777 single-model 0.6554.)
 ```
 
 **Key Takeaways**:
@@ -2702,9 +2706,9 @@ Arousal Specialist (designed for specific task) > seed888 (general model with di
 
 **Evidence**:
 ```
-Ensemble Performance:
+Ensemble Performance (projected, unvalidated):
 - seed777 + seed888: 0.6687
-- seed777 + arousal_specialist: 0.6833 (+2.2%)
+- seed777 + arousal_specialist: projection withdrawn (never validated); measured best single model seed777 = 0.6554
 
 Individual Performance:
 - seed888: 0.6211 (general)
@@ -2725,7 +2729,7 @@ Individual Performance:
 ### 10.2 "Less is More" in Ensemble Design
 
 **Discovery**:
-2-model ensemble (0.6833) > 3-model (0.6729) > 4-model (0.6491) > 5-model (0.6297)
+Among the projected (unvalidated) estimates: 2-model > 3-model (0.6729) > 4-model (0.6491) > 5-model (0.6297). Measured best result: seed777 single model (0.6554).
 
 **Why This is Surprising**:
 - Standard ensemble wisdom: "More models = more diversity = better performance"
@@ -2898,8 +2902,8 @@ OR
 ```
 
 **What Systematic Testing Revealed**:
-- Surprising finding: 2-model > 3-model > 4-model > 5-model (counterintuitive!)
-- Optimal: seed777 + arousal_specialist (CCC 0.6833)
+- Surprising finding (among projected estimates): 2-model > 3-model > 4-model > 5-model (counterintuitive!)
+- Best projection: seed777 + arousal_specialist, but unvalidated; measured best = seed777 single model (CCC 0.6554)
 - Would have missed this without comprehensive testing
 
 **Cost-Benefit Analysis**:
@@ -2909,11 +2913,11 @@ Cost:
 - Human time: ~1 hour (analyze results, make decision)
 
 Benefit:
-- Found optimal ensemble (0.6833)
-- Avoided suboptimal choices (e.g., 5-model at 0.6297)
-- Improvement: +2.2% vs naïve choice (seed777+seed888)
+- Explored all ensemble combinations (projected estimates, never validated)
+- Measured best result: seed777 single model (0.6554)
+- The earlier "+2.2% vs seed777+seed888" gain was based on an unvalidated projection
 
-ROI: 1 hour → +2.2% performance (absolutely worth it!)
+ROI: systematic testing clarified that no projected ensemble was validated to beat 0.6554
 ```
 
 **Lesson**:
@@ -2966,7 +2970,7 @@ Assessment: Significant improvement, approach validated
 **Solution 3: Ensemble with Complementary Models** ✅
 ```
 Action: Combine seed777 (best valence) + arousal_specialist (best arousal)
-Result: Ensemble CCC 0.6833 (expected to have best arousal too)
+Result: Ensemble projected only (unvalidated); measured best remains seed777 single model 0.6554
 Assessment: Leverages both models' strengths
 ```
 
@@ -3005,7 +3009,7 @@ Problem: seed888 redundant with seed777, adds noise
 **Phase 3: Systematic Testing** ✅
 ```
 Action: Test all 26 combinations (2-model through 5-model)
-Result: Discovered seed777 + arousal_specialist optimal (0.6833)
+Result: seed777 + arousal_specialist gave the highest projection (unvalidated); measured best = seed777 single model (0.6554)
 Key Insight: Complementarity matters more than count
 ```
 
@@ -3233,8 +3237,8 @@ If CCC = 0.65:
 - Scale/bias correction accounts for gap
 
 My models:
-- Validation CCC: 0.6833
-- Expected Pearson r: 0.70-0.72 (rough estimate)
+- Validation CCC: 0.6554 (measured best single model)
+- Test Pearson r: not measured
 ```
 
 **Decision**:
@@ -3263,7 +3267,7 @@ loss = 0.7 * ccc_loss + 0.3 * pearson_loss
 **Lessons Learned**:
 - **Metric alignment important** but not critical if metrics correlated
 - **CCC safer choice** for training (more robust)
-- **Expected performance**: Validation CCC 0.68 → Test Pearson r ~0.70-0.72
+- **Expected performance**: Validation CCC 0.6554; test Pearson r not measured
 - **Future work**: Could experiment with Pearson r optimization if time allows
 
 ### 11.6 Google Colab Prediction Pipeline (January 7, 2026)
@@ -3399,7 +3403,7 @@ Prediction File: pred_subtask2a.csv
 
 Submission File: submission.zip
 - Size: 0.73 KB
-- Expected CCC: 0.6733-0.6933 (avg 0.6833)
+- Measured CCC: 0.6554 (best single model, seed777); ensemble boost/range was projected only, not validated
 - Status: Ready for Codabench submission
 ```
 
@@ -3829,16 +3833,16 @@ This project successfully developed a state-of-the-art ensemble system for emoti
 **Key Accomplishments**:
 
 1. **Performance Milestone**: ✅
-   - Final Ensemble CCC: **0.6833**
+   - Measured best single-model val CCC: **0.6554** (seed777)
    - Target CCC: 0.62
-   - **Improvement: +10.4%** above target
-   - Expected test Pearson r: 0.70-0.72 (competitive performance)
+   - **Improvement: +5.7%** above target
+   - The 2-model ensemble was projected only and was never validated
 
 2. **Technical Innovations**:
    - Developed **Arousal Specialist** model with targeted loss function design (90% CCC weight)
    - Engineered **3 arousal-specific features** (change, volatility, acceleration)
    - Implemented **weighted sampling** strategy for hard cases
-   - Discovered optimal **2-model ensemble** outperforms larger ensembles
+   - Found that a **2-model ensemble** ranked above larger ensembles in projected estimates (unvalidated; measured best was the seed777 single model)
 
 3. **Model Development**:
    - Trained **5 distinct models** with different architectures and objectives
@@ -3858,11 +3862,11 @@ This project successfully developed a state-of-the-art ensemble system for emoti
 
 | Metric | Initial | Baseline (Phase 2) | Target | Final | vs Target |
 |--------|---------|-------------------|--------|-------|-----------|
-| Overall CCC | 0.5053 (seed42) | 0.6305 | 0.62 | **0.6833** | **+10.4%** |
+| Overall CCC | 0.5053 (seed42) | 0.6305 | 0.62 | **0.6554** | **+5.7%** |
 | Valence CCC | 0.6841 | 0.7352 | 0.70 | 0.7392* | +5.6% |
 | Arousal CCC | 0.4918 | 0.5258 | 0.60 | 0.5832* | -2.8% |
 
-*Estimated from ensemble components (seed777 valence + arousal_specialist arousal)
+*Valence/Arousal here are estimated ensemble components; the Overall CCC shown is the measured seed777 single-model value (the ensemble itself was never validated).
 
 **Progression Timeline**:
 ```
@@ -3873,14 +3877,14 @@ November 2025:
 
 December 2025:
 - Dec 23: seed888 training (seed777+seed888: 0.6687)
-- Dec 24: Arousal Specialist innovation (final ensemble: 0.6833)
-- Status: ✅ Target exceeded by +10.4%
+- Dec 24: Arousal Specialist innovation (final ensemble projected only; measured best single model 0.6554)
+- Status: ✅ Target exceeded by +5.7% (measured, single model)
 
 January 2026:
 - Jan 7: Google Colab prediction generation (submission.zip: 0.73 KB)
 - Status: ✅ Submission prepared, ready for Codabench
 
-Performance Growth: +35% improvement (0.5053 → 0.6833)
+Seed range (same architecture): CCC 0.5053 to 0.6554
 ```
 
 ### 13.3 Personal Growth and Skills Acquired
@@ -4008,7 +4012,7 @@ Performance Growth: +35% improvement (0.5053 → 0.6833)
 
 **Personal Reflection**:
 
-This project represented my most comprehensive deep learning research experience to date. The journey from initial baseline (CCC 0.5053) to final ensemble (CCC 0.6833) taught me that **significant improvements come from systematic analysis and targeted interventions**, not just "trying harder" or "adding more models."
+This project represented my most comprehensive deep learning research experience to date. The journey from initial baseline (CCC 0.5053) to the measured best single model (CCC 0.6554) taught me that **significant improvements come from systematic analysis and targeted interventions**, not just "trying harder" or "adding more models."
 
 The discovery that 2 models outperform 5 models was humbling—it challenged my assumption that "more is always better" and reinforced the importance of empirical validation over intuition. The Arousal Specialist innovation demonstrated that **understanding the problem deeply** (arousal performance gap) leads to effective solutions (specialized loss function).
 
@@ -4449,11 +4453,11 @@ if __name__ == '__main__':
 | seed888 | 888 | 0.6211 | — | — | — | — | — | 2.0h | A100 |
 | arousal_specialist | 1111 | 0.6512 | 0.7192 | 0.5832 | 0.9404 | 0.6528 | 15 | 0.4h | A100 |
 
-**All 2-Model Ensemble Results**:
+**All 2-Model Ensemble Results** (the "Expected CCC" column holds unvalidated weighted-average + boost projections; row 1's projection is withdrawn, marked *; the measured best is seed777 alone at 0.6554):
 
 | Rank | Model 1 | Model 2 | CCC1 | CCC2 | Weight1 | Weight2 | Expected CCC | Range |
 |------|---------|---------|------|------|---------|---------|--------------|-------|
-| 1 | seed777 | arousal_specialist | 0.6554 | 0.6512 | 0.5016 | 0.4984 | **0.6833** | 0.6733-0.6933 |
+| 1 | seed777 | arousal_specialist | 0.6554 | 0.6512 | 0.5016 | 0.4984 | withdrawn* | — |
 | 2 | seed777 | seed888 | 0.6554 | 0.6211 | 0.5133 | 0.4867 | 0.6687 | 0.6587-0.6787 |
 | 3 | seed888 | arousal_specialist | 0.6211 | 0.6512 | 0.4880 | 0.5120 | 0.6665 | 0.6565-0.6765 |
 | 4 | seed123 | seed777 | 0.5330 | 0.6554 | 0.4485 | 0.5515 | 0.6305 | 0.6205-0.6405 |
