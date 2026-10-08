@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # Scripts 디렉토리 구조
 
 **목적**: 0.70+ CCC 달성을 위한 스크립트 정리

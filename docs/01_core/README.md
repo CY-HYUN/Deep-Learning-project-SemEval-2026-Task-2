@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # 📚 프로젝트 문서
 
 > **즉시 시작**: 프로젝트 루트의 [QUICKSTART.md](QUICKSTART.md)를 참고하세요!

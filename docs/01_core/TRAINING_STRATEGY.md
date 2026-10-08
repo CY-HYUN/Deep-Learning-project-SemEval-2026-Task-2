@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # 훈련 전략 가이드
 
 **작성일**: 2025-12-19

@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # Results 디렉토리 - Subtask 2a
 
 **목적**: 모델 성능 및 앙상블 결과 추적

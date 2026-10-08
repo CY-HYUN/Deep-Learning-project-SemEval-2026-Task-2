@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # SemEval 2026 Task 2 - Documentation / 문서
 
 Complete project documentation organized by category / 카테고리별로 정리된 전체 프로젝트 문서

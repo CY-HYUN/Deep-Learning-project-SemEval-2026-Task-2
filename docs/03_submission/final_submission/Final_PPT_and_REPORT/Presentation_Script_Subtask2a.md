@@ -1,5 +1,6 @@
 > Superseded numbers: this working document predates the verified results.
-> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
 
 # SemEval 2026 Task 2a Presentation Script
 ## 10-15 Minute Natural Speaking Guide (English + Korean)

@@ -1,5 +1,6 @@
 > Superseded numbers: this working document predates the verified results.
-> The current figures are in README.md (best single model CCC 0.6554; ensembles were never re-scored).
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
 > The projected scores and rank estimates below were planning guesses: none was run or measured.
 
 # Part 2: Training History, Results, and Lessons Learned

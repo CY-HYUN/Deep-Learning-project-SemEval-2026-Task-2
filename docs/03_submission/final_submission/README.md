@@ -1,3 +1,7 @@
+> Superseded numbers: this working document predates the verified results.
+> The current figures are in README.md (best single model: validation mean Pearson r 0.6554, which the training
+> code logs as "CCC"; true CCC was not measured; ensembles were never re-scored).
+
 # 최종 제출 파일 (Final Submission Files)
 
 > **목적**: 교수님께 제출할 SemEval 2026 Task 2 최종 프로젝트 자료
