@@ -11,8 +11,15 @@ figures are measured vs estimated.
 
 SemEval 2026 Task 2, Subtask 2a: given a user's timeline of diary entries (text +
 self-reported valence/arousal), forecast that user's next emotional *state change* — one
-valence delta and one arousal delta per user. Metric: Concordance Correlation Coefficient
-(CCC), averaged over valence and arousal.
+valence delta and one arousal delta per user. Metric used in this project: Concordance Correlation
+Coefficient (CCC), averaged over valence and arousal.
+
+**What this repo's validation numbers are.** `validate()` in both training scripts computes Pearson r
+per dimension and averages the two (`train_arousal_specialist.py:671-673`), although the logs call it
+"CCC". The split is a random 15% of entries stratified by user, so the same users are in training and
+validation (`train_test_split(..., stratify=df['user_id'])`), and the target is the valence / arousal
+level of the last entry in the sequence, not the state change (`train_arousal_specialist.py:400-401`).
+True CCC was not measured. Every "r" or "score" below is this number.
 
 Data (verified by loading the CSVs):
 
@@ -58,7 +65,7 @@ loss_arousal = 0.90 * CCC_loss + 0.10 * MSE_loss   # arousal-focused
 
 ## 4. Arousal specialist — the core experiment
 
-Problem (measured, `results/subtask2a/ensemble_results.json`): arousal CCC lagged valence
+Problem (measured, `results/subtask2a/ensemble_results.json`): arousal r lagged valence
 badly across all seeds — seed777 scored valence 0.7593 vs arousal 0.5516; the worst seed
 (42) scored arousal 0.3574.
 
@@ -74,33 +81,40 @@ Measured outcome (`docs/02_development/TRAINING_LOG_20251224.md`, best epoch 15/
 
 | Metric | seed777 baseline | Arousal specialist | Delta |
 |---|---:|---:|---:|
-| Arousal CCC | 0.5516 | 0.5832 | +0.0316 (+5.7% rel.) |
-| Valence CCC | 0.7593 | 0.7192 | −0.0401 |
-| Overall CCC | 0.6554 | 0.6512 | −0.0042 |
+| Arousal r | 0.5516 | not quoted (leak, see caveat) | — |
+| Valence r | 0.7593 | 0.7192 | −0.0401 |
+| Overall (mean r) | 0.6554 | 0.6512 (includes the leaky arousal score) | −0.0042 |
 | Training time (A100) | ~2 h | ~24 min | |
+
+**Caveat:** `arousal_change` is |arousal(t) − arousal(t−1)| computed on the entry being predicted
+(`train_arousal_specialist.py:221`, used as input at `:386`, target at `:401`), so it contains the
+target. Any arousal gain may come from this feature rather than from the loss and sampling changes.
+Not re-measured.
 
 ## 5. Ensemble selection (and its limitation)
 
 `scripts/03_evaluation/calculate_ensemble_weights.py` enumerates model combinations
 (2–5 models) and, for each combination:
 
-- assigns weights proportional to each model's measured validation CCC, and
-- *estimates* the ensemble CCC as the weighted mean of individual CCCs plus an assumed
+- assigns weights proportional to each model's measured validation score, and
+- *estimates* the ensemble score as the weighted mean of individual scores plus an assumed
   ensemble boost of +0.02 to +0.04.
 
 Under that heuristic, seed777 + arousal_specialist ranks first (weights 50.16% / 49.84% —
 reproduced with the same values by rerunning the script). **Limitation**: the blended
-predictions were never re-scored on a held-out split, so the projected ensemble CCC was
-never validated — the best measured result is therefore the seed777 single model at CCC
-0.6554; the heuristic also structurally favors small ensembles of strong models (adding a
+predictions were never re-scored on a held-out split, so the projected ensemble score was
+never validated — the best measured result is therefore the seed777 single model at mean
+Pearson r 0.6554; the heuristic also structurally favors small ensembles of strong models (adding a
 weaker model lowers the weighted mean while the boost stays fixed). A stacking comparison (`scripts/03_evaluation/optimize_stacking.py`, Ridge on
-validation predictions) was scaffolded but not run — it depends on saved per-model
-validation predictions that were never generated.
+validation predictions) was scaffolded but not used — it depends on saved per-model
+validation predictions that were never generated, and currently runs on random placeholder arrays.
 
 ## 6. Feature engineering
 
-The committed feature table `data/processed/subtask2a_features.csv` (2,764 × 65, Git LFS)
-adds 55 engineered columns to the 10 raw fields:
+The training scripts compute their own features in-script from the raw training CSV (31 in the base
+model: 17 temporal, 4 per-user, 10 text). The committed feature table
+`data/processed/subtask2a_features.csv` (2,764 × 65, Git LFS) is a separate export that adds 55
+engineered columns to the 10 raw fields:
 
 - **Temporal**: lags t-1..t-3 for valence/arousal, rolling mean/std, velocity,
   `entry_number`, `relative_position`, `hours_since_start`, `time_gap_hours`,
@@ -123,7 +137,7 @@ From `train_arousal_specialist.py` constants and the training log:
 |---|---|
 | Batch size | 10 |
 | Max epochs | 20 (specialist) / 30 (seed888 run, per log) |
-| Early stopping | patience 7, checkpoint on best validation CCC |
+| Early stopping | patience 7, checkpoint on best validation score (mean Pearson r) |
 | LR (RoBERTa) | 1.5e-5 |
 | LR (other layers) | 8e-5 |
 | Optimizer | AdamW |
@@ -133,17 +147,19 @@ From `train_arousal_specialist.py` constants and the training log:
 ## 8. Measured results archive
 
 - `results/subtask2a/ensemble_results.json` — 2025-11-20 evaluation of seeds 42/123/777
-  (CCC, per-dimension CCC, RMSE, best epoch).
+  (score logged as "ccc" but computed as mean Pearson r, per-dimension r, RMSE, best epoch).
 - `docs/02_development/TRAINING_LOG_20251224.md` — seed888 and arousal-specialist training
   runs with measured validation metrics (Korean-language lab log).
-- `results/subtask2a/optimal_ensemble.json` — final ensemble weights + estimated CCC range.
+- `results/subtask2a/optimal_ensemble.json` — final ensemble weights + estimated score range.
 - `results/subtask2a/pred_subtask2a.csv` — submitted predictions (46 users).
 
 ## 9. Known issues encountered
 
 - **Feature-dimension mismatch (863 vs 866)** between training and inference
-  preprocessing; handled with dynamic dimension detection in the prediction pipeline
-  (`scripts/02_prediction/`).
+  preprocessing. The prediction pipeline (`scripts/02_prediction/`) detects the dimension so the
+  checkpoints load, but this only matches the total size: the Colab notebook feeds 5 lag + 12 user +
+  14 text features where training used 17 + 4 + 10, and one entry instead of a 7-entry sequence.
+  The mismatch was not fixed.
 - **`is_forecasting_user` misreading** (Jan 2026): initially misinterpreted as a
   data-leakage marker; organizers clarified it flags the 46 users needing predictions.
   Full post-mortem preserved in `docs/05_archive/misunderstanding_2026-01-14/`.
